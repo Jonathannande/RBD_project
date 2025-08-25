@@ -1,0 +1,20 @@
+# Build outputs
+*.exe
+*.out
+*.o
+*.obj
+*.a
+*.so
+*.dll
+
+# Build directories
+build/
+bin/
+obj/
+
+# Sublime Text
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
