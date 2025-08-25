@@ -872,7 +872,7 @@ int main()
 	double t = 4;
 
 	//time step
-	double dt = 0.01;
+	double dt = 0.1;
 	
 	solve_dynamics(n,t,dt);
 	

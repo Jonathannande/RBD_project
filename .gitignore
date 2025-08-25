@@ -6,6 +6,7 @@
 *.a
 *.so
 *.dll
+.png
 
 # Build directories
 build/
