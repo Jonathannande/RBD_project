@@ -114,7 +114,7 @@ public:
 
 */
 
-//we need to use some pointser for this thing
+//we need to use some pointer for this thing
 class SystemOfBodies {
 
 public:
@@ -129,6 +129,7 @@ public:
 	std::vector<std::unique_ptr<Body>> bodies; //storage of each body with pointer
 	std::vector<double> system_state; //stores entire initial state of system, first all positions, then all velocities
 	arma::mat system_hinge; //not sure what this is
+	arma::mat graph_matrix; // contains the connection structure of the system
 
 	
 	//modified parsed result to fit arbitrary hinge_map
@@ -188,7 +189,7 @@ public:
 	arma::mat find_spatial_operator_input_vector(std::vector<arma::vec>& DoFs) {
 		arma::mat return_vector = arma::zeros(n,6);
 
-		//uses the modifyed theta
+		//uses the modified theta
 		for (int i = 0; i<n; ++i) {
 			return_vector.row(i) = (bodies[i]->hinge_map.t()*DoFs[i] - (bodies[i]->position_vec_hinge_big-bodies[i]->outboard_position_vec_hinge_big)).t();
 		}
@@ -358,36 +359,29 @@ public:
 	}
 	
 	void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t) {
-		
-
 		//takes current state of the solver and creates the generalized coordinates
-	    std::vector<double> theta_standard_form(y.begin() , y.end()-y.size()/2);
-	    std::vector<double> theta_dot_standard_form(y.begin()+y.size()/2, y.end());
-	    std::vector<arma::vec> theta = to_arma_vec(theta_standard_form);
-	    std::vector<arma::vec> theta_dot = to_arma_vec(theta_dot_standard_form);
-	    for (int i = 0; i < theta.size(); ++i)
-	    
-	    {
-	    	//std::cout << "The postional state of theta " << 1 << " has the value of " << theta[1]<< std::endl;
-	    }
+		std::vector<double> theta_standard_form(y.begin() , y.end()-y.size()/2);
+		std::vector<double> theta_dot_standard_form(y.begin()+y.size()/2, y.end());
+		std::vector<arma::vec> theta = to_arma_vec(theta_standard_form);
+		std::vector<arma::vec> theta_dot = to_arma_vec(theta_dot_standard_form);
 
 
-	    //matrix initialization this should be entirely unecessary from a computational point of view and should be fixed to only stroe values which are needed on a later occasion
+		//matrix initialization this should be entirely unecessary from a computational point of view and should be fixed to only stroe values which are needed on a later occasion
 
-	    arma::mat P_plus = arma::zeros(6*(n+1), 6*(n+1));
-	    arma::mat J_fractal_plus = arma::zeros(6, n+1);
-	    arma::mat tau_bar = arma::zeros(6*n, 6*(n+1));
-	    arma::mat P = arma::zeros(6*n, 6*(n+1));
-	    arma::mat D;// = arma::zeros(n, n);
-	    std::vector<arma::mat> G_fractal(n);// = arma::zeros(6, n+1);
-	    arma::mat J_fractal = arma::zeros(6, n+1);
-	    arma::mat eta;// = arma::zeros(1, n+1);
-	    std::vector<arma::mat> frac_v(n);// = arma::zeros(1, n);
-	    arma::mat accel = arma::zeros(6, n+1);
-	    accel(4, n) = system_gravity;  // Equivalent to MATLAB's `accel(5,n+1) = -g;`
-	    arma::mat accel_plus = arma::zeros(6, n+1);
-	    arma::mat body_velocities = arma::zeros(6, n+1);
-	    arma::mat inertia_matrix;
+		arma::mat P_plus = arma::zeros(6*(n+1), 6*(n+1));
+		arma::mat J_fractal_plus = arma::zeros(6, n+1);
+		arma::mat tau_bar = arma::zeros(6*n, 6*(n+1));
+		arma::mat P = arma::zeros(6*n, 6*(n+1));
+		arma::mat D;// = arma::zeros(n, n);
+		std::vector<arma::mat> G_fractal(n);// = arma::zeros(6, n+1);
+		arma::mat J_fractal = arma::zeros(6, n+1);
+		arma::mat eta;// = arma::zeros(1, n+1);
+		std::vector<arma::mat> frac_v(n);// = arma::zeros(1, n);
+		arma::mat accel = arma::zeros(6, n+1);
+		accel(4, n) = system_gravity;  // Equivalent to MATLAB's `accel(5,n+1) = -g;`
+		arma::mat accel_plus = arma::zeros(6, n+1);
+		arma::mat body_velocities = arma::zeros(6, n+1);
+
 		
 	    //we really need to do something about this
 	    arma::mat transform_matrix = find_spatial_operator_input_vector(theta);
@@ -405,15 +399,12 @@ public:
 
 		for (int k = 0; k <= n-1; ++k) {
 
-			k_idx1 = {6*(k),6*(k+1)-1};
+			k_idx1 = {6*k,6*(k+1)-1};
 			k_idx2 = {6*(k+1),6*(k+2)-1};
 
-			bodies[k]->compute_inertia_matrix(); 
-
-			arma::mat inertia_matrix = bodies[k]->inertial_matrix; 
-			P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])) = spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*P_plus(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])).t()+inertia_matrix;
+			P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])) = spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*P_plus(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])).t()+bodies[k]->inertial_matrix;
 			D = bodies[k]->hinge_map*P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*bodies[k]->transpose_hinge_map;
-			
+			std::cout << cond(D) << std::endl;
 
 			G_fractal[k] = P(arma::span(k_idx1[0], k_idx1[1]),arma::span(k_idx1[0], k_idx1[1]))*bodies[k]->transpose_hinge_map*arma::inv(arma::mat{D});
 
@@ -421,7 +412,7 @@ public:
 			
 			P_plus(arma::span(k_idx2[0],k_idx2[1]),arma::span(k_idx2[0],k_idx2[1])) = tau_bar(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]));
 
-			J_fractal.col(k) = spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*J_fractal_plus.col(k)+P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*coriolis_vector(bodies[k]->transpose_hinge_map,body_velocities.col(k),theta_dot[k])+gyroscopic_force_z(inertia_matrix,body_velocities.col(k));
+			J_fractal.col(k) = spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*J_fractal_plus.col(k)+P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*coriolis_vector(bodies[k]->transpose_hinge_map,body_velocities.col(k),theta_dot[k])+gyroscopic_force_z(bodies[k]->inertial_matrix,body_velocities.col(k));
 				
 			eta = -bodies[k]->hinge_map*J_fractal.col(k);
 
@@ -433,14 +424,13 @@ public:
 		}
 		
 		std::vector<arma::vec> theta_ddot(n);
-		//std::cout << "adhnfgsiodjfo" << std::endl;
 		for (int k = n-1; k >= 0; --k) {
-			k_idx1 = {6*(k),6*(k+1)-1};
+			k_idx1 = {6*k,6*(k+1)-1};
 			k_idx2 = {6*(k+1),6*(k+2)-1};
 			accel_plus.col(k) = spatial_operator_dt(arma::span(k_idx2[0],k_idx2[1]),arma::span(k_idx2[0],k_idx2[1])).t()*accel.col(k+1);
-			//std::cout << accel_plus.col(k)<< std::endl;
+
 			theta_ddot[k] = frac_v[k] - G_fractal[k].t()*accel_plus.col(k);
-			//std::cout << "hellfaoisjdhfpoasid" << std::endl;
+
 			
 			accel.col(k) = accel_plus.col(k)+bodies[k]->transpose_hinge_map*theta_ddot[k]+coriolis_vector(bodies[k]->transpose_hinge_map,body_velocities.col(k),theta_dot[k]);
 		}
@@ -557,8 +547,8 @@ public:
     system_dofs_distribution.insert(system_dofs_distribution.begin(),inserted_body->hinge_map.n_rows);
 
     system_total_dof += inserted_body->hinge_map.n_rows;
-    // Example: Call methods
-    //inserted_body->compute_inertia_matrix(); // Call method
+
+    inserted_body->compute_inertia_matrix();
 
     update_system_state();
 
@@ -570,7 +560,7 @@ public:
 
 int main()
 {
-	//print_cwd();
+
 
 	auto rec_1 = std::make_unique<Rectangle>(2.0,8,0.2,0.1);
 	rec_1->set_postion_vec_hinge({0, -rec_1->l/2.0, 0});
@@ -579,12 +569,12 @@ int main()
 	rec_1->compute_inertia_matrix();
 
 	auto rec_2 = std::make_unique<Rectangle>(2.0,8,0.2,0.1);
-/*
-	arma::mat xx = {{0,1,0,0,0,0},{0,0,1,0,0,0}};
+
+	arma::mat xx = {{1,0,0,0,0,0},{0,0,1,0,0,0}};
 	arma::vec x = {pi/4,pi/3,0,0};
 	rec_2->set_hinge_map(xx);
 	rec_2->set_hinge_state(x);
-*/
+
 	rec_2->set_postion_vec_hinge({0, -rec_2->l/2.0, 0});
 	rec_2->set_outboard_position_vec_hinge({0, rec_2->l/2.0, 0});
 	rec_2->compute_inertia_matrix();
