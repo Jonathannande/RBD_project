@@ -358,7 +358,8 @@ public:
 	    
 	}
 	
-	void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t) {
+	void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t,arma::mat P_plus, arma::mat J_fractal_plus, arma::mat tau_bar, arma::mat P, arma::mat J_fractal,
+			arma::mat accel, arma::mat accel_plus, arma::mat body_velocities, std::vector<arma::mat> G_fractal,std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D) {
 		//takes current state of the solver and creates the generalized coordinates
 		std::vector<double> theta_standard_form(y.begin() , y.end()-y.size()/2);
 		std::vector<double> theta_dot_standard_form(y.begin()+y.size()/2, y.end());
@@ -366,33 +367,19 @@ public:
 		std::vector<arma::vec> theta_dot = to_arma_vec(theta_dot_standard_form);
 
 
-		//matrix initialization this should be entirely unecessary from a computational point of view and should be fixed to only stroe values which are needed on a later occasion
-
-		arma::mat P_plus = arma::zeros(6*(n+1), 6*(n+1));
-		arma::mat J_fractal_plus = arma::zeros(6, n+1);
-		arma::mat tau_bar = arma::zeros(6*n, 6*(n+1));
-		arma::mat P = arma::zeros(6*n, 6*(n+1));
-		arma::mat D;// = arma::zeros(n, n);
-		std::vector<arma::mat> G_fractal(n);// = arma::zeros(6, n+1);
-		arma::mat J_fractal = arma::zeros(6, n+1);
-		arma::mat eta;// = arma::zeros(1, n+1);
-		std::vector<arma::mat> frac_v(n);// = arma::zeros(1, n);
-		arma::mat accel = arma::zeros(6, n+1);
 		accel(4, n) = system_gravity;  // Equivalent to MATLAB's `accel(5,n+1) = -g;`
-		arma::mat accel_plus = arma::zeros(6, n+1);
-		arma::mat body_velocities = arma::zeros(6, n+1);
+
 
 		
 	    //we really need to do something about this
 	    arma::mat transform_matrix = find_spatial_operator_input_vector(theta);
 	    arma::mat spatial_operator_dt = find_spatial_operator(transform_matrix, n);
 
-		//now we start sweeping 3 times in total, first kinematics which has in part already been done through the spatial operator, but now velocities
+		//now we start sweeping n times in total, first kinematics which has in part already been done through the spatial operator, but now velocities
 		
 		for (int k = n-1; k >= 0; --k) {
 			body_velocities.col(k) = spatial_operator_dt(arma::span(6*(k+1),6*(k+2)-1),arma::span(6*(k+1),6*(k+2)-1)).t()*body_velocities.col(k+1)+bodies[k]->transpose_hinge_map*theta_dot[k];
 		}
-
 		//these are arrays storing the kth interval index, just so that you dont have to do the annoying indexing all the time
 		std::array<int, 2> k_idx1;
 		std::array<int, 2> k_idx2;
@@ -404,7 +391,7 @@ public:
 
 			P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])) = spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*P_plus(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])).t()+bodies[k]->inertial_matrix;
 			D = bodies[k]->hinge_map*P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*bodies[k]->transpose_hinge_map;
-			std::cout << cond(D) << std::endl;
+			//std::cout << cond(D) << std::endl;
 
 			G_fractal[k] = P(arma::span(k_idx1[0], k_idx1[1]),arma::span(k_idx1[0], k_idx1[1]))*bodies[k]->transpose_hinge_map*arma::inv(arma::mat{D});
 
@@ -428,10 +415,7 @@ public:
 			k_idx1 = {6*k,6*(k+1)-1};
 			k_idx2 = {6*(k+1),6*(k+2)-1};
 			accel_plus.col(k) = spatial_operator_dt(arma::span(k_idx2[0],k_idx2[1]),arma::span(k_idx2[0],k_idx2[1])).t()*accel.col(k+1);
-
 			theta_ddot[k] = frac_v[k] - G_fractal[k].t()*accel_plus.col(k);
-
-			
 			accel.col(k) = accel_plus.col(k)+bodies[k]->transpose_hinge_map*theta_ddot[k]+coriolis_vector(bodies[k]->transpose_hinge_map,body_velocities.col(k),theta_dot[k]);
 		}
 
@@ -476,7 +460,18 @@ public:
 		arma::mat store_forces = arma::zeros(n*6,t/dt);
 		arma::mat store_generalized_forces = arma::zeros(n,t/dt);
 		*/
-
+		arma::mat P_plus = arma::zeros(6*(n+1), 6*(n+1));
+		arma::mat J_fractal_plus = arma::zeros(6, n+1);
+		arma::mat tau_bar = arma::zeros(6*n, 6*(n+1));
+		arma::mat P = arma::zeros(6*n, 6*(n+1));
+		arma::mat J_fractal = arma::zeros(6, n+1);
+		arma::mat accel = arma::zeros(6, n+1);
+		arma::mat accel_plus = arma::zeros(6, n+1);
+		arma::mat body_velocities = arma::zeros(6, n+1);
+		std::vector<arma::mat> G_fractal(n);
+		std::vector<arma::mat> frac_v(n);
+		arma::mat D;
+		arma::mat eta;
 	    // Single vector to store data
 	    std::vector<double> results;
 	    
@@ -489,7 +484,8 @@ public:
 		    std::vector<double> dydt(y.size(), 0.0);
 		    
 		    // Compute the derivative at the current state and time.
-		    system_of_equations_forward_dynamics(y, dydt, t);
+			system_of_equations_forward_dynamics(y, dydt, t,P_plus, J_fractal_plus, tau_bar, P, J_fractal,
+			accel, accel_plus, body_velocities, G_fractal, frac_v,eta,D);
 		    
 		    results.push_back(t);
 		    
@@ -512,8 +508,9 @@ public:
 	    runge_kutta_cash_karp54<std::vector<double>> stepper;
 	    integrate_const(
 		    stepper,
-		    [this](const std::vector<double>& y, std::vector<double>& dydt, double t) {
-		        system_of_equations_forward_dynamics(y, dydt, t);
+		    [&](const std::vector<double>& y, std::vector<double>& dydt, double t) {
+		    	system_of_equations_forward_dynamics(y, dydt, t, P_plus, J_fractal_plus, tau_bar, P, J_fractal,
+			accel, accel_plus, body_velocities, G_fractal, frac_v,eta,D);
 		    },
 		    system_state, t0, t, dt, obs
 		);
@@ -536,20 +533,23 @@ public:
 
 	//method that adds body to system.
 	void create_body(std::unique_ptr<Body> any_body) {
+		// Move the unique_ptr into the container and get a pointer to the inserted object
+		auto it = bodies.insert(bodies.begin(), std::move(any_body)); // Move ownership
+		Body* inserted_body = it->get(); // Retrieve the raw pointer
 
-    // Move the unique_ptr into the container and get a pointer to the inserted object
-    auto it = bodies.insert(bodies.begin(), std::move(any_body)); // Move ownership
-    Body* inserted_body = it->get(); // Retrieve the raw pointer
+		// Now use inserted_body to access methods and properties
+		++n;
 
-    // Now use inserted_body to access methods and properties
-    ++n;
+		system_dofs_distribution.insert(system_dofs_distribution.begin(),inserted_body->hinge_map.n_rows);
 
-    system_dofs_distribution.insert(system_dofs_distribution.begin(),inserted_body->hinge_map.n_rows);
+		system_total_dof += inserted_body->hinge_map.n_rows;
+/*
 
-    system_total_dof += inserted_body->hinge_map.n_rows;
-
-    inserted_body->compute_inertia_matrix();
-
+		for (int j = 0; j < bodies.size(); ++j){
+			idx1 = {6*j,6*(j+1)-1};
+			idx2 = {6*(k+1),6*(k+2)-1};
+		}
+		*/
     update_system_state();
 
 	}
@@ -586,7 +586,21 @@ int main()
 	system_1.create_body(move(rec_2));
 	
 
-	system_1.solve_forward_dynamics();
+	//system_1.solve_forward_dynamics();
+
+	SystemOfBodies system_2;
+
+	for (int i = 0; i < 10; ++i) {
+		auto rec = std::make_unique<Rectangle>(2.0, 8, 0.2, 0.1);
+		rec->set_postion_vec_hinge({0, -rec->l/2.0, 0});
+		rec->set_outboard_position_vec_hinge({0, rec->l/2.0, 0});
+		rec->set_hinge_state({pi/2, 0});
+		rec->compute_inertia_matrix();
+
+		system_2.create_body(std::move(rec));
+	}
+
+	system_2.solve_forward_dynamics();
 	//std::cout << system_1.system_total_dof << std::endl;
 	//std::cout << system_1.system_state[3] << std::endl;
 
