@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add your source files here
-add_executable(MyProject src/system_of_bodies_class.cpp
+add_executable(MyProject src/main.cpp
         src/math_utils.cpp
         src/math_utils.h
         src/plotting_utils.cpp
@@ -14,7 +14,13 @@ add_executable(MyProject src/system_of_bodies_class.cpp
         src/data_types.cpp
         src/data_types.h
         src/bodies.cpp
-        src/bodies.h)
+        src/bodies.h
+        src/system_of_bodies.cpp
+        src/system_of_bodies.h
+        src/Tests_utils.cpp
+        src/Tests_utils.h
+        src/system_of_bodies_inverse_dynamics.cpp
+        src/system_of_bodies_forward_dynamics.cpp)
 
 # Include directories
 target_include_directories(MyProject PRIVATE

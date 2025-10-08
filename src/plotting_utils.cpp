@@ -71,7 +71,7 @@ void plot_thetas(ParsedData parsed_thetas,int dofs) {
 	std::string title = "positional theta plot";  // Set a single title string
 	plt::title(title);  // Now, this will work
 	matplotlibcpp::tight_layout();
-    matplotlibcpp::save("../output_folder/position_thetas.png");
+    matplotlibcpp::save("../output_folder_2/position_thetas.png");
     plt::clf();
 
 	for (int i = 0; i <= dofs-1; ++i)
@@ -83,7 +83,7 @@ void plot_thetas(ParsedData parsed_thetas,int dofs) {
 
 	title = "velocity theta plot";  // Set a single title string
 	plt::title(title);  // Now, this will work
-    plt::save("../output_folder/velocity_thetas.png");
+    plt::save("../output_folder_2/velocity_thetas.png");
     plt::clf();
 
     for (int i = 0; i <= dofs-1; ++i)
@@ -95,7 +95,7 @@ void plot_thetas(ParsedData parsed_thetas,int dofs) {
 
 	title = "acceleration theta plot";  // Set a single title string
 	plt::title(title);  // Now, this will work
-    plt::save("../output_folder/acceleration_thetas.png");
+    plt::save("../output_folder_2/acceleration_thetas.png");
     plt::clf();
 }
 

@@ -73,7 +73,7 @@ arma::mat rotation_matrix_qua(const arma::mat& rotation_vec) {
 
 arma::mat rb_transform(arma::mat rotation_vec, arma::mat position_vec) {
 	// define rotation matrix and tilde position matrix
-	arma::mat rotations = rotation_matrix_qua(rotation_vec);
+	arma::mat rotations = rotation_matrix(rotation_vec);
 	arma::mat position_vec_tilde = tilde(position_vec.t());
 
 	// rotate positions to the new frame

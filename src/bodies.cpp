@@ -33,12 +33,36 @@ void Body::set_hinge_state(arma::vec hinge_state_input) {
     if (2*hinge_map.n_rows == hinge_state_input.n_rows) {
         state = hinge_state_input;
     }
+
 }
 
+void Body::set_position_for_inverse_dyn(std::string func) {
+    inverse_dynamics_funcs.push_back(func);
+}
+
+void Body::set_velocity_for_inverse_dyn(std::string func) {
+    inverse_dynamics_funcs.push_back(func);
+}
+
+void Body::set_acceleration_for_inverse_dyn(std::string func) {
+    inverse_dynamics_funcs.push_back(func);
+}
+
+//The order of which you give the functions matter.
+void Body::set_functions_for_inverse_dyn(std::vector<std::string> funcs) {
+    const int n = state.size()/2;
+    for (int i = 0; i < n; ++i) {
+        set_position_for_inverse_dyn(funcs[i]);
+        set_velocity_for_inverse_dyn(funcs[i]);
+        set_acceleration_for_inverse_dyn(funcs[i]);
+    }
+}
+
+
 // Rectangle class implementations
-Rectangle::Rectangle(double length, double breadth, double height, double mass)
-    : Body(mass), l(length), b(breadth), h(height) {
-    transform_vector = {0,0,0,l,0,0};
+Rectangle::Rectangle(double length, double width, double height, double mass)
+    : Body(mass), l(length), b(width), h(height) {
+    transform_vector = {0,0,0,0,l,0};
 }
 
 void Rectangle::compute_inertia_matrix() {

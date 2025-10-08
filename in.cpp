@@ -251,7 +251,7 @@ void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vec
     arma::mat inertia_matrix;
 
     //we really need to do something about this
-    arma::mat transform_matix = {{0.5*theta[0],0,0.5*theta[0],0,-l,0},{0,0,theta[1],0,-l,0},{0,0,theta[2],0,-l,0}};
+    arma::mat transform_matix = {{0,0,theta[0],0,-l,0},{0,0,theta[1],0,-l,0},{0,0,theta[2],0,-l,0}};
     arma::mat spatial_operator_dt = find_spatial_operator(transform_matix, n);
 
 
@@ -262,8 +262,9 @@ void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vec
 	
 	for (int k = n-1; k >= 0; --k) {
 		body_velocities.col(k) = spatial_operator_dt(arma::span(6*(k+1),6*(k+2)-1),arma::span(6*(k+1),6*(k+2)-1)).t()*body_velocities.col(k+1)+hinge_map_1_transpose*theta_dot[k];
+	
 	}
-
+	//std::cout<<"G_frac:"<<body_velocities<< "      " <<"t="<<t<<std::endl;
 	//these are arrays storing the kth interval index, just so that you dont have to do the annoying indexing all the time
 	std::array<int, 2> k_idx1;
 	std::array<int, 2> k_idx2;
@@ -284,8 +285,11 @@ void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vec
 
 		frac_v(k) = arma::as_scalar(arma::solve(D(arma::span(k, k), arma::span(k, k)),eta.col(k)));
 		J_fractal_plus.col(k+1) = J_fractal.col(k)+G_fractal.col(k)*eta.col(k);
+		std::cout<<"G_frac:"<<spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))<< "      " <<"t="<<t<<std::endl;
 		
 	}
+	//std::cout<<"frac_v:"<<frac_v<<std::endl;
+	
 	
 	std::vector<double> theta_ddot = {0,0,0};
 
@@ -665,7 +669,9 @@ void compute_body_forward_dynamics(ParsedData parsed_thetas,int n, int t, double
 		{
 			//might not be computationally efficient though it has general implementation
 			body_velocities.col(k) = spatial_operator_dt(arma::span(6*(k+1),6*(k+2)-1),arma::span(6*(k+1),6*(k+2)-1)).t()*body_velocities.col(k+1)+hinge_map_1_transpose*parsed_thetas.vel[k][i];
+			
 		}
+		//std::cout<<body_velocities<<std::endl;
 
 		for (int k = 0; k <= n-1; ++k) {
 
@@ -872,7 +878,7 @@ int main()
 	double t = 4;
 
 	//time step
-	double dt = 0.01;
+	double dt = 0.1;
 	
 	solve_dynamics(n,t,dt);
 	

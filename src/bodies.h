@@ -5,7 +5,6 @@
 #pragma once
 #include <armadillo>
 #include <string>
-#include <memory>
 
 class Body {
 public:
@@ -20,6 +19,7 @@ public:
     //arma::vec rotation_vec hinge; //should maybe be used the general formulation of the program
     arma::vec state = {0,0}; //this is the initial conditions of the body, should use its generalized velocity/position of which there might be multiple
     arma::mat inertial_matrix;
+    std::vector<std::string> inverse_dynamics_funcs; //saved in pairs of 3, for each dof of the body from left to right.
     double m; //mass
 
     Body(double mass);
@@ -28,6 +28,10 @@ public:
     void set_outboard_position_vec_hinge(arma::vec input_vec);
     void set_hinge_map(arma::mat hinge_map_input);
     void set_hinge_state(arma::vec hinge_state_input);
+    void set_functions_for_inverse_dyn(std::vector<std::string> funcs);
+    void set_position_for_inverse_dyn(std::string func);
+    void set_velocity_for_inverse_dyn(std::string func);
+    void set_acceleration_for_inverse_dyn(std::string func);
 };
 
 class Rectangle : public Body {
