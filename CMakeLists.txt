@@ -46,6 +46,7 @@ target_link_libraries(MyProject
         sfml-window
         sfml-system
         opengl32
+        muparser
 )
 
 # Set the compiler (MinGW)

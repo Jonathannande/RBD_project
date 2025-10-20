@@ -5,6 +5,7 @@
 #include <armadillo>
 
 arma::mat tilde(arma::mat vector) {
+
 	arma::mat tilde_matrix = {
 		{0,-vector(2),vector(1)},
 		{vector(2),0,-vector(0)},
@@ -38,6 +39,7 @@ arma::mat rotation_matrix(arma::mat rotation_vec) {
 };
 	arma::mat R_xyz = R_x*R_y*R_z;
 	return R_xyz;
+
 }
 
 
@@ -73,7 +75,7 @@ arma::mat rotation_matrix_qua(const arma::mat& rotation_vec) {
 
 arma::mat rb_transform(arma::mat rotation_vec, arma::mat position_vec) {
 	// define rotation matrix and tilde position matrix
-	arma::mat rotations = rotation_matrix(rotation_vec);
+	arma::mat rotations = rotation_matrix_qua(rotation_vec);
 	arma::mat position_vec_tilde = tilde(position_vec.t());
 
 	// rotate positions to the new frame

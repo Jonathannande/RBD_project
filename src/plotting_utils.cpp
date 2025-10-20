@@ -9,10 +9,14 @@
 
 namespace plt = matplotlibcpp;
 
-void plot_data(arma::mat store_data, ParsedData parsed_thetas, int n, std::string data_type) {
+void plot_data(arma::mat store_data, ParsedData parsed_thetas,const int n,const std::string &data_type) {
     plt::figure_size(1200, 780);
 
-    std::vector<double> time_vector(parsed_thetas.times.begin(), parsed_thetas.times.end() - 1);
+    std::vector<double> time_vector(parsed_thetas.times.begin(), parsed_thetas.times.end());
+	if (time_vector.size() != store_data.n_cols) {
+		time_vector.resize(store_data.n_cols);
+	}
+
 
     for (int j = 0; j <= n-1; ++j) {
         for (int i = 6*n-(j+1)*6; i <= 6*n-6*j-1; ++i) {
@@ -23,23 +27,22 @@ void plot_data(arma::mat store_data, ParsedData parsed_thetas, int n, std::strin
 
         // Generate title and filename based on data_type
         std::string title, filename;
-
         if (data_type == "velocity") {
             title = "vel_body_" + std::to_string(n - j);
-            filename = "output_folder/velocity_body_" + std::to_string(n - j) + ".png";
+            filename = "../output_folder/velocity_body_" + std::to_string(n - j) + ".png";
         }
         else if (data_type == "acceleration") {
             title = "acc_body_" + std::to_string(n - j);
-            filename = "output_folder/acceleration_body_" + std::to_string(n - j) + ".png";
+            filename = "../output_folder/acceleration_body_" + std::to_string(n - j) + ".png";
         }
         else if (data_type == "position") {
             title = "pos_body_" + std::to_string(n - j);
-            filename = "output_folder/position_body_" + std::to_string(n - j) + ".png";
+            filename = "../output_folder/position_body_" + std::to_string(n - j) + ".png";
         }
         else {
             // Default fallback
             title = data_type + "_body_" + std::to_string(n - j);
-            filename = "output_folder/" + data_type + "_body_" + std::to_string(n - j) + ".png";
+            filename = "../output_folder/" + data_type + "_body_" + std::to_string(n - j) + ".png";
         }
 
         plt::title(title);

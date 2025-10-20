@@ -4,6 +4,7 @@
 #pragma once
 #include <vector>
 
+// this data type is specifically design such that it can hold both n bodies, with n dofs thus the vector in a vector. In the case of a single dof it just works like a normal vector
 struct ParsedData {
     std::vector<double> times;
     std::vector<std::vector<double>> accel;

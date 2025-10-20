@@ -14,7 +14,7 @@
 using namespace boost::numeric::odeint;
 
 void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t,arma::mat P_plus, arma::mat J_fractal_plus, arma::mat tau_bar, arma::mat P, arma::mat J_fractal,
-                                                          arma::mat accel, arma::mat accel_plus, arma::mat body_velocities, std::vector<arma::mat> G_fractal,std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D) {
+                                                          arma::mat &accel, arma::mat accel_plus, arma::mat &body_velocities, std::vector<arma::mat> G_fractal,std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D,arma::mat &body_forces) {
 
 
 
@@ -79,13 +79,18 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 			accel.col(k) = accel_plus.col(k)+bodies[k]->transpose_hinge_map*theta_ddot[k]+coriolis_vector(bodies[k]->transpose_hinge_map,body_velocities.col(k),theta_dot[k]);
 		}
 
+		for (int k = 0; k <= n-1; ++k) {
+			k_idx1 = {6*k,6*(k+1)-1};
+			k_idx2 = {6*(k+1),6*(k+2)-1};
+			body_forces.col(k) =P_plus(arma::span(k_idx2[0],k_idx2[1]),arma::span(k_idx2[0],k_idx2[1]))*accel_plus.col(k)+J_fractal_plus.col(k+1);
+		}
 
 		    // dv/dt = a(t)
-		std::vector<double> theta_as_std_vec = to_std_vec(theta_dot);
+		std::vector<double> theta_dot_as_std_vec = to_std_vec(theta_dot);
 		std::vector<double> theta_ddot_as_std_vec = to_std_vec(theta_ddot);
 
 	    for(size_t i = 0; i < system_total_dof; ++i){
-	        dydt[i] = theta_as_std_vec[i];
+	        dydt[i] = theta_dot_as_std_vec[i];
 	    }
 
 	    // dx/dt = v
@@ -109,14 +114,13 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 
 
 	void SystemOfBodies::solve_forward_dynamics() {
-		//storage
 
-		/* This a should hold the results of the body relative states for later plotting and insspection of results
-		arma::mat store_velocities = arma::zeros(n*6,t/dt);
-		arma::mat store_accelerations = arma::zeros(n*6,t/dt);
-		arma::mat store_forces = arma::zeros(n*6,t/dt);
-		arma::mat store_generalized_forces = arma::zeros(n,t/dt);
-		*/
+		// This a should hold the results of the body relative states for later plotting and inspection of results
+		arma::mat store_velocities = arma::zeros(n*6,t/dt+1);
+		arma::mat store_accelerations = arma::zeros(n*6,t/dt+1);
+		arma::mat store_forces = arma::zeros(n*6,t/dt+1);
+		//arma::mat store_generalized_forces = arma::zeros(n,t/dt);
+
 		arma::mat P_plus = arma::zeros(6*(n+1), 6*(n+1));
 		arma::mat J_fractal_plus = arma::zeros(6, n+1);
 		arma::mat tau_bar = arma::zeros(6*n, 6*(n+1));
@@ -125,16 +129,16 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 		arma::mat accel = arma::zeros(6, n+1);
 		arma::mat accel_plus = arma::zeros(6, n+1);
 		arma::mat body_velocities = arma::zeros(6, n+1);
+		arma::mat body_forces = arma::zeros(6, n+1);
 		std::vector<arma::mat> G_fractal(n);
 		std::vector<arma::mat> frac_v(n);
 		arma::mat D;
 		arma::mat eta;
 
-	    // Single vector to store data
+	    //single vector to store data
 	    std::vector<double> results;
 
-	    //This is a dummy parameter which would count the iteration, for have a storage index for the body relative states
-	    //int col_index = 0;
+
 
 	    // Observer lambda - OBS does't work for the current state model
 		auto obs = [&](const std::vector<double>& y, double t) {
@@ -143,11 +147,16 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 
 		    // Compute the derivative at the current state and time.
 			system_of_equations_forward_dynamics(y, dydt, t,P_plus, J_fractal_plus, tau_bar, P, J_fractal,
-			accel, accel_plus, body_velocities, G_fractal, frac_v,eta,D);
+			accel, accel_plus, body_velocities, G_fractal, frac_v,eta,D,body_forces);
 
 		    results.push_back(t);
+			for (size_t k = 0; k < n; k++) {
+				store_accelerations.col(t/dt).rows(k*6,(k+1)*6-1) = accel.col(k);
+				store_velocities.col(t/dt).rows(k*6,(k+1)*6-1) = body_velocities.col(k);
+				store_forces.col(t/dt).rows(k*6,(k+1)*6-1) = body_forces.col(k);
+			}
 
-		    //has to separate for loops because of the pushback
+		    //has to separate for loops because of the pushback - accelerations are stored in groups then velocities, then positions
 		    for (size_t i = system_total_dof; i < 2*system_total_dof; i++) {
 		         results.push_back(dydt[i]);
 		    }
@@ -168,7 +177,7 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 		    stepper,
 		    [&](const std::vector<double>& y, std::vector<double>& dydt, double t) {
 		    	system_of_equations_forward_dynamics(y, dydt, t, P_plus, J_fractal_plus, tau_bar, P, J_fractal,
-			accel, accel_plus, body_velocities, G_fractal, frac_v,eta,D);
+			accel, accel_plus, body_velocities, G_fractal, frac_v,eta,D,body_forces);
 		    },
 		    system_state, t0, t, dt, obs
 		);
@@ -176,6 +185,9 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 	    ParsedData formatted_results = parseResults(results);
 	    std::cout << "done1" << std::endl;
 	    plot_thetas(formatted_results, system_total_dof);
+		plot_data(store_accelerations,formatted_results,n,"accelerations");
+		plot_data(store_velocities,formatted_results,n,"velocities");
+		plot_data(store_forces,formatted_results,n,"forces");
 	    std::cout << "done2" << std::endl;
 	    //compute_body_forward_dynamics(formatted_results);
 

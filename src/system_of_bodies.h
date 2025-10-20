@@ -12,13 +12,12 @@
 #include "data_types.h"
 
 class SystemOfBodies {
-public:  // ADD THIS
+    const double t0 {0.0};
+    const double t {4.0};
+    const double dt {0.01};
+    const double system_gravity {9.81};
     int n {0};
-    double t0 {0.0};
-    double t {4.0};
-    double dt {0.01};
-    double system_gravity {9.81};
-    int system_total_dof = 0;
+    int system_total_dof = {0};
     std::vector<int> system_dofs_distribution;
     std::vector<double> system_equations;
     std::vector<std::unique_ptr<Body>> bodies;
@@ -27,15 +26,17 @@ public:  // ADD THIS
     arma::mat graph_matrix;
 
     // Methods
-    ParsedData parseResults(const std::vector<double>& results);
+public:
+    int get_dt() const {return dt; }
+    ParsedData parseResults(std::vector<double>& results);
 
     void update_system_state();
 
     arma::mat find_spatial_operator_input_vector(std::vector<arma::vec>& DoFs);
 
-    std::vector<arma::vec> to_arma_vec(std::vector<double> DoFs);
+    std::vector<arma::vec> to_arma_vec(const std::vector<double>& DoFs);
 
-    std::vector<double> to_std_vec(std::vector<arma::vec>& DoFs);
+    std::vector<double> to_std_vec(const std::vector<arma::vec>& DoFs);
 
     arma::mat find_gravity_matrix_pseudo_acceleration();
 
@@ -43,8 +44,8 @@ public:  // ADD THIS
 
     void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t,
         arma::mat P_plus, arma::mat J_fractal_plus, arma::mat tau_bar, arma::mat P, arma::mat J_fractal,
-        arma::mat accel, arma::mat accel_plus, arma::mat body_velocities, std::vector<arma::mat> G_fractal,
-        std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D);
+        arma::mat &accel, arma::mat accel_plus, arma::mat &body_velocities, std::vector<arma::mat> G_fractal,
+        std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D,arma::mat &body_forces);
 
     void solve_forward_dynamics();
 
@@ -55,8 +56,12 @@ public:  // ADD THIS
     void create_body(std::unique_ptr<Body> any_body);
 
     ParsedData inverse_run_funcs();
+    std::vector<double> inverse_run_funcs_2();
+
+    arma::mat find_spatial_operator_input_vector(std::vector<double> po);
 
     void solve_inverse_dynamics();
+
 
 };
 

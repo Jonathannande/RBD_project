@@ -27,7 +27,7 @@ using namespace boost::numeric::odeint;
 
 
 	//modified parsed result to fit arbitrary hinge_map
-	ParsedData SystemOfBodies::parseResults(const std::vector<double>& results)
+	ParsedData SystemOfBodies::parseResults(std::vector<double>& results)
 	{
 
 	    const size_t row_size = 1 + 3*system_total_dof;
@@ -90,12 +90,14 @@ using namespace boost::numeric::odeint;
 		return return_vector;
 	}
 
+
+	/*
 	std::vector<arma::vec> SystemOfBodies::to_arma_vec(std::vector<double> DoFs) {
-		//std::cout << "yo";
+
 		std::vector<arma::vec> return_vector;
 
-		int start_idx = 0;
-		//matbe shouldn't set it to false i dont know
+		int start_idx{0};
+
 		for (int i = 0; i<n; ++i) {
 
 			return_vector.push_back(arma::vec(DoFs.data() + start_idx, system_dofs_distribution[i], true));
@@ -103,6 +105,8 @@ using namespace boost::numeric::odeint;
 		}
 		return return_vector;
 	}
+
+
 
 	std::vector<double> SystemOfBodies::to_std_vec(std::vector<arma::vec>& DoFs) {
 		std::vector<double> return_vector;
@@ -117,122 +121,36 @@ using namespace boost::numeric::odeint;
 		return return_vector;
 	}
 
-	//should only be necessary in inverse kinematics
-	arma::mat SystemOfBodies::find_gravity_matrix_pseudo_acceleration() {
-		arma::mat zero_config = arma::zeros(6,n);
-		return zero_config;
-	}
-	/*
-	void compute_body_forward_dynamics(ParsedData parsed_thetas) {
+*/
 
-		//temporary placeholders for computation
-		arma::mat body_velocities = arma::zeros(6,n+1);
-		arma::mat body_accelerations = arma::zeros(6,n+1);
-		arma::mat body_forces = arma::zeros(6,n+1);
-		arma::mat generalized_forces = arma::zeros(1,n);
+	std::vector<arma::vec> SystemOfBodies::to_arma_vec(const std::vector<double>& DoFs) {
+		std::vector<arma::vec> return_vector;
+		return_vector.reserve(n);
 
-		//storage
-		arma::mat store_velocities = arma::zeros(n*6,t/dt);
-		arma::mat store_accelerations = arma::zeros(n*6,t/dt);
-		arma::mat store_forces = arma::zeros(n*6,t/dt);
-		arma::mat store_generalized_forces = arma::zeros(n,t/dt);
-
-		//matrix initialization
-
-	    arma::mat P_plus = arma::zeros(6*(n+1), 6*(n+1));
-	    arma::mat J_fractal_plus = arma::zeros(6, n+1);
-	    arma::mat tau_bar = arma::zeros(6*n, 6*(n+1));
-	    arma::mat P = arma::zeros(6*n, 6*(n+1));
-	    arma::mat D = arma::zeros(n, n);
-	    arma::mat G_fractal = arma::zeros(6, n+1);
-	    arma::mat J_fractal = arma::zeros(6, n+1);
-	    arma::mat eta = arma::zeros(1, n+1);
-	    arma::mat frac_v = arma::zeros(1, n);
-	    arma::mat accel = arma::zeros(6, n+1);
-	    accel(4, n) = system_gravity;  // Equivalent to MATLAB's `accel(5,n+1) = -g;`
-	    arma::mat accel_plus = arma::zeros(6, n+1);
-
-	    arma::mat inertia_matrix;
-
-	    std::array<int, 2> k_idx1;
-	    std::array<int, 2> k_idx2;
-
-		for (int i = 0; i < t/dt; ++i)
-		{
-			//this should be implemented as a system property, current implementation is very much NOT general
-			arma::mat transform_matix = {{0,0,parsed_thetas.pos[0][i],0,-l,0},{0,0,parsed_thetas.pos[1][i],0,-l,0},{0,0,parsed_thetas.pos[2][i],0,-l,0}};
-
-			//this is implmented well for general system though it might not be computationally efficient
-			arma::mat spatial_operator_dt = find_spatial_operator(transform_matix,n);
-
-			//should be implemented in general and ideally as acting on the force instead further testing is necessary for that
-			arma::mat gravity_vector = {{0,0,0},{0,0,0},{0,0,0},{0,0,g*sin(parsed_thetas.pos[2][i])},{0,0,g*cos(parsed_thetas.pos[2][i])},{0,0,0}};
-
-
-			// scatter sweep
-			for (int k = n-1; k >= 0; --k)
-			{
-				//might not be computationally efficient though it has general implementation
-				body_velocities.col(k) = spatial_operator_dt(arma::span(6*(k+1),6*(k+2)-1),arma::span(6*(k+1),6*(k+2)-1)).t()*body_velocities.col(k+1)+hinge_map_1_transpose*parsed_thetas.vel[k][i];
-			}
-
-			for (int k = 0; k <= n-1; ++k) {
-
-				k_idx1 = {6*(k),6*(k+1)-1};
-				k_idx2 = {6*(k+1),6*(k+2)-1};
-
-				inertia_matrix = bodies[k]->inertia_matrix();
-				P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])) = spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*P_plus(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])).t()+inertia_matrix;
-				D(k,k) = arma::as_scalar(hinge_map_1*P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*hinge_map_1_transpose);
-				G_fractal.col(k) = P(arma::span(k_idx1[0], k_idx1[1]),arma::span(k_idx1[0], k_idx1[1]))*hinge_map_1_transpose*arma::inv(arma::mat{D(k,k)});
-				tau_bar(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1])) = arma::eye(6,6)-G_fractal.col(k)*hinge_map_1;
-				P_plus(arma::span(k_idx2[0],k_idx2[1]),arma::span(k_idx2[0],k_idx2[1])) = tau_bar(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]));
-				J_fractal.col(k) = spatial_operator_dt(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*J_fractal_plus.col(k)+P(arma::span(k_idx1[0],k_idx1[1]),arma::span(k_idx1[0],k_idx1[1]))*coriolis_vector(hinge_map_1_transpose,body_velocities.col(k),parsed_thetas.vel[k][i])+gyroscopic_force_z(inertia_matrix,body_velocities.col(k));
-				eta.col(k) = -hinge_map_1*J_fractal.col(k);
-				frac_v(k) = arma::as_scalar(arma::solve(D(arma::span(k, k), arma::span(k, k)),eta.col(k)));
-				J_fractal_plus.col(k+1) = J_fractal.col(k)+G_fractal.col(k)*eta.col(k);
-
-			}
-
-			for (int k = n-1; k >= 0; --k) {
-				k_idx1 = {6*(k),6*(k+1)-1};
-				k_idx2 = {6*(k+1),6*(k+2)-1};
-				accel_plus.col(k) = spatial_operator_dt(arma::span(k_idx2[0],k_idx2[1]),arma::span(k_idx2[0],k_idx2[1])).t()*accel.col(k+1);
-				accel.col(k) = accel_plus.col(k)+hinge_map_1_transpose*parsed_thetas.accel[k][i]+coriolis_vector(hinge_map_1_transpose,body_velocities.col(k),parsed_thetas.vel[k][i]);
-			}
-
-			//gather sweep
-			for (int k = 0; k < n; ++k)
-			{
-				k_idx1 = {6*(k),6*(k+1)-1};
-				k_idx2 = {6*(k+1),6*(k+2)-1};
-				//is not efficient, you only need to call inertia once per body, inertia matrix should be a per body computation in case boddies are different,
-				body_forces.col(k+1) = P_plus(arma::span(k_idx2[0],k_idx2[1]),arma::span(k_idx2[0],k_idx2[1]))*accel_plus.col(k)+J_fractal_plus.col(k+1);
-			}
-
-
-
-			//formatting
-			for (int k = 0; k < n; ++k)
-			{
-				//std::cout << "hello";
-				store_velocities.col(i).rows(k*(6),(k+1)*(6)-1) = body_velocities.col(k);
-				store_accelerations.col(i).rows(k*(6),(k+1)*(6)-1) = accel.col(k);
-				store_forces.col(i).rows(k*(6),(k+1)*(6)-1) = body_forces.col(k+1);
-				//store_generalized_forces.col(i) = generalized_forces.t();
-			}
-
-
+		int start_idx = 0;
+		for (int i = 0; i < n; ++i) {
+			arma::vec slice = arma::conv_to<arma::vec>::from(
+				std::vector<double>(DoFs.begin() + start_idx,
+								  DoFs.begin() + start_idx + system_dofs_distribution[i])
+			);
+			return_vector.push_back(std::move(slice));
+			start_idx += system_dofs_distribution[i];
 		}
-
-		//plot_velocities(store_velocities, parsed_thetas);
-		//plot_accelerations(store_accelerations,parsed_thetas);
-		//plot_forces(store_forces,parsed_thetas);
-		//plot_generalized_forces(store_generalized_forces,parsed_thetas);
-		//plot_thetas(parsed_thetas);
-
+		return return_vector;
 	}
-	*/
+
+	std::vector<double> SystemOfBodies::to_std_vec(const std::vector<arma::vec>& DoFs) {
+		std::vector<double> return_vector;
+
+		for (int i = 0; i < n; ++i) {
+			std::vector<double> temp = arma::conv_to<std::vector<double>>::from(DoFs[i]);
+			return_vector.insert(return_vector.end(), temp.begin(), temp.end());
+		}
+		return return_vector;
+	}
+
+
+
 	void SystemOfBodies::test_method() {
 		//takes current state of the solver and creates the generalized coordinates
 

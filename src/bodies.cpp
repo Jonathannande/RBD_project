@@ -8,12 +8,13 @@
 
 // Body class implementations
 Body::Body(double mass) : m(mass) {
-    hinge_map = {0,0,1,0,0,0};
-    transpose_hinge_map = hinge_map.t();
-    state = {0,0};
+    hinge_map = {0,0,1,0,0,0}; // default 1 dof hingemap - changed with set_hinge_map
+    transpose_hinge_map = hinge_map.t(); // transpose of hinge_map
+    state = {0,0}; // state of position then velocity respectively
+    bool is_dependent_hingemap = false; // used for hinge maps with dependence on a variable - not currently implemented
 }
 
-void Body::set_postion_vec_hinge(arma::vec input_vec) {
+void Body::set_position_vec_hinge(arma::vec &input_vec) {
     position_vec_hinge = input_vec;
     position_vec_hinge_big = join_vert(arma::zeros(3,1), input_vec);
 }
@@ -36,25 +37,25 @@ void Body::set_hinge_state(arma::vec hinge_state_input) {
 
 }
 
-void Body::set_position_for_inverse_dyn(std::string func) {
+void Body::set_position_for_inverse_dyn(const std::string func) {
     inverse_dynamics_funcs.push_back(func);
 }
 
-void Body::set_velocity_for_inverse_dyn(std::string func) {
+void Body::set_velocity_for_inverse_dyn(const std::string func) {
     inverse_dynamics_funcs.push_back(func);
 }
 
-void Body::set_acceleration_for_inverse_dyn(std::string func) {
+void Body::set_acceleration_for_inverse_dyn(const std::string func) {
     inverse_dynamics_funcs.push_back(func);
 }
 
 //The order of which you give the functions matter.
-void Body::set_functions_for_inverse_dyn(std::vector<std::string> funcs) {
+void Body::set_functions_for_inverse_dyn(const std::vector<std::string> &funcs) {
     const int n = state.size()/2;
     for (int i = 0; i < n; ++i) {
-        set_position_for_inverse_dyn(funcs[i]);
-        set_velocity_for_inverse_dyn(funcs[i]);
-        set_acceleration_for_inverse_dyn(funcs[i]);
+        set_position_for_inverse_dyn(funcs[i*3]);
+        set_velocity_for_inverse_dyn(funcs[i*3+1]);
+        set_acceleration_for_inverse_dyn(funcs[i*3+2]);
     }
 }
 
