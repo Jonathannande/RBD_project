@@ -37,20 +37,21 @@ using namespace boost::numeric::odeint;
 
 	    ParsedData data;
 	    data.times.resize(steps);
+		data.pos.assign(system_total_dof, std::vector<double>(steps));
+		data.vel.assign(system_total_dof, std::vector<double>(steps));
 	    data.accel.assign(system_total_dof, std::vector<double>(steps));
-	    data.vel.assign(system_total_dof, std::vector<double>(steps));
-	    data.pos.assign(system_total_dof, std::vector<double>(steps));
+
+
 
 	    for (size_t s = 0; s < steps; s++)
 	    {
-	        size_t offset = s * (row_size); //seemingly has some kind of a bug +2 for the 2 dof single pendulum thing
+	        size_t offset = s * row_size;
 	        data.times[s] = results[offset];
-	        //std::cout << data.times[s] << std::endl;
-	        // accelerations
+
 	        for (size_t i = 0; i < system_total_dof; i++) {
-	            data.accel[i][s] = results[offset + 1 + i];
-	            data.vel[i][s] = results[offset + 1 + system_total_dof + i];
-	            data.pos[i][s] = results[offset + 1 + 2*system_total_dof + i];
+	        	data.pos[i][s] = results[offset + 1 +  i];
+	        	data.vel[i][s] = results[offset + 1 + system_total_dof + i];
+	            data.accel[i][s] = results[offset + 1 + 2*system_total_dof + i];
 	        }
 	    }
 
@@ -188,6 +189,7 @@ using namespace boost::numeric::odeint;
 		++n;
 
 		system_dofs_distribution.insert(system_dofs_distribution.begin(),inserted_body->hinge_map.n_rows);
+
 
 		system_total_dof += inserted_body->hinge_map.n_rows;
 /*

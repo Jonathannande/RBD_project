@@ -24,7 +24,7 @@ class SystemOfBodies {
     std::vector<double> system_state;
     arma::mat system_hinge;
     arma::mat graph_matrix;
-
+    bool has_dynamic_time_step{false};
     // Methods
 public:
     int get_dt() const {return dt; }
@@ -45,7 +45,7 @@ public:
     void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t,
         arma::mat P_plus, arma::mat J_fractal_plus, arma::mat tau_bar, arma::mat P, arma::mat J_fractal,
         arma::mat &accel, arma::mat accel_plus, arma::mat &body_velocities, std::vector<arma::mat> G_fractal,
-        std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D,arma::mat &body_forces);
+        std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D,arma::mat &body_forces,std::vector<double> &dydt_out);
 
     void solve_forward_dynamics();
 
