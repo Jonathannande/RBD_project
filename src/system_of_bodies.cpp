@@ -123,14 +123,16 @@ using namespace boost::numeric::odeint;
 	}
 
 */
-
+	void SystemOfBodies::set_stepper_type(bool is_dynamic) {
+		has_dynamic_time_step = is_dynamic;
+	}
 	std::vector<arma::vec> SystemOfBodies::to_arma_vec(const std::vector<double>& DoFs) {
 		std::vector<arma::vec> return_vector;
 		return_vector.reserve(n);
-
+		arma::vec slice;
 		int start_idx = 0;
 		for (int i = 0; i < n; ++i) {
-			arma::vec slice = arma::conv_to<arma::vec>::from(
+			 slice = arma::conv_to<arma::vec>::from(
 				std::vector<double>(DoFs.begin() + start_idx,
 								  DoFs.begin() + start_idx + system_dofs_distribution[i])
 			);

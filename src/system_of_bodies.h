@@ -18,13 +18,55 @@ class SystemOfBodies {
     const double system_gravity {9.81};
     int n {0};
     int system_total_dof = {0};
+    bool has_dynamic_time_step{false};
+
+
     std::vector<int> system_dofs_distribution;
     std::vector<double> system_equations;
     std::vector<std::unique_ptr<Body>> bodies;
     std::vector<double> system_state;
     arma::mat system_hinge;
     arma::mat graph_matrix;
-    bool has_dynamic_time_step{false};
+
+
+    std::vector<arma::span> span_k1_;
+    std::vector<arma::span> span_k2_;
+    bool spans_initialized{false};
+
+
+    struct forward_parameters{
+        arma::mat P_plus;
+        arma::mat J_fractal_plus;
+        arma::mat tau_bar;
+        arma::mat P;
+        arma::mat J_fractal;
+        arma::mat accel;
+        arma::mat accel_plus;
+        arma::mat body_velocities;
+        arma::mat body_forces;
+        std::vector<arma::mat> G_fractal;
+        std::vector<arma::mat> frac_v;
+        arma::mat D;
+        arma::mat eta;
+        std::vector<double> dydt_out;
+
+        forward_parameters(int n_,int system_total_dof_):
+            P_plus(arma::zeros(6*(n_+1), 6*(n_+1))),
+            J_fractal_plus(arma::zeros(6, n_+1)),
+            tau_bar(arma::zeros(6*n_, 6*(n_+1))),
+            P(arma::zeros(6*n_, 6*(n_+1))),
+            J_fractal(arma::zeros(6, n_+1)),
+            accel(arma::zeros(6, n_+1)),
+            accel_plus(arma::zeros(6, n_+1)),
+            body_velocities(arma::zeros(6, n_+1)),
+            body_forces(arma::zeros(6, n_+1)),
+            G_fractal(n_),
+            frac_v(n_),
+            dydt_out(system_total_dof_*2, 0.0)
+
+        {}
+    };
+
     // Methods
 public:
     int get_dt() const {return dt; }
@@ -42,10 +84,14 @@ public:
 
     void test_method();
 
+    void set_stepper_type(bool has_dynamic_time_step);
+
     void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t,
         arma::mat P_plus, arma::mat J_fractal_plus, arma::mat tau_bar, arma::mat P, arma::mat J_fractal,
         arma::mat &accel, arma::mat accel_plus, arma::mat &body_velocities, std::vector<arma::mat> G_fractal,
         std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D,arma::mat &body_forces,std::vector<double> &dydt_out);
+
+    void system_of_equations_forward_dynamics_test(const std::vector<double> &y, std::vector<double> &dydt, double t,forward_parameters& p);
 
     void solve_forward_dynamics();
 

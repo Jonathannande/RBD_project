@@ -37,6 +37,7 @@ void test_single_body_multi_dof() {
     SystemOfBodies system;
 
     system.create_body(std::move(rec_1));
+    system.set_stepper_type(true);
     system.solve_forward_dynamics();
 }
 
@@ -53,6 +54,7 @@ void test_n_body_system(const int n) {
 
         system.create_body(std::move(rec));
     }
+    //system.set_stepper_type(true);
     system.solve_forward_dynamics();
 
 }
@@ -88,4 +90,21 @@ void test_inverse_dynamics_three_body_from_course() {
         system.create_body(std::move(rec));
     }
     system.solve_inverse_dynamics();
+}
+
+void test_dense() {
+    std::array<double, 3> array = {pi/4, -pi/4, pi/4};
+    SystemOfBodies system;
+    for (int i = 0; i < 3; ++i) {
+        auto rec = std::make_unique<Rectangle>(2.0, 0.1, 0.2, 8.0);
+        arma::vec vec=  {0, -rec->l/2.0, 0};
+        rec->set_position_vec_hinge(vec);
+        rec->set_outboard_position_vec_hinge({0, rec->l/2.0, 0});
+        rec->set_hinge_state({array[i], 0});
+        rec->compute_inertia_matrix();
+
+        system.create_body(std::move(rec));
+    }
+    system.set_stepper_type(true);
+    system.solve_forward_dynamics();
 }
