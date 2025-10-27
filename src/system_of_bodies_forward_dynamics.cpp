@@ -14,13 +14,14 @@
 #include <boost/numeric/odeint/stepper/runge_kutta_dopri5.hpp>
 #include <boost/numeric/odeint/stepper/controlled_runge_kutta.hpp>
 #include <boost/numeric/odeint/stepper/dense_output_runge_kutta.hpp>
+#include <chrono>
 
 
 using namespace boost::numeric::odeint;
 
 
 
-void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, double t,arma::mat P_plus, arma::mat J_fractal_plus, arma::mat tau_bar, arma::mat P, arma::mat J_fractal,
+void SystemOfBodies::system_of_equations_forward_dynamics_old(const std::vector<double> &y, std::vector<double> &dydt, double t,arma::mat P_plus, arma::mat J_fractal_plus, arma::mat tau_bar, arma::mat P, arma::mat J_fractal,
                                                           arma::mat &accel, arma::mat accel_plus, arma::mat &body_velocities, std::vector<arma::mat> G_fractal,std::vector<arma::mat> frac_v,arma::mat eta,arma::mat D,arma::mat &body_forces,std::vector<double>&dydt_out) {
 
 	//takes current state of the solver and creates the generalized coordinates
@@ -94,7 +95,7 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 }
 
 
-void SystemOfBodies::system_of_equations_forward_dynamics_test(const std::vector<double> &y, std::vector<double> &dydt, double t,forward_parameters &p) {
+void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt,forward_parameters &p) {
 
 	//takes current state of the solver and creates the generalized coordinates
 	std::vector<double> theta_standard_form(y.begin() , y.end()-system_total_dof);
@@ -120,9 +121,8 @@ void SystemOfBodies::system_of_equations_forward_dynamics_test(const std::vector
 	}
 
 
-
-
 	for (int k = 0; k < n; ++k) {
+
 
 		p.P(span_k1_[k],span_k1_[k]) = spatial_operator_dt(span_k1_[k],span_k1_[k])*p.P_plus(span_k1_[k],span_k1_[k])*spatial_operator_dt(span_k1_[k],span_k1_[k]).t()+bodies[k]->inertial_matrix;
 
@@ -181,24 +181,6 @@ void SystemOfBodies::solve_forward_dynamics() {
 		spans_initialized = true;
 	}
 
-	// parameters used in the forward comutation
-	/*
-		arma::mat P_plus = arma::zeros(6*(n+1), 6*(n+1));
-		arma::mat J_fractal_plus = arma::zeros(6, n+1);
-		arma::mat tau_bar = arma::zeros(6*n, 6*(n+1));
-		arma::mat P = arma::zeros(6*n, 6*(n+1));
-		arma::mat J_fractal = arma::zeros(6, n+1);
-		arma::mat accel = arma::zeros(6, n+1);
-		arma::mat accel_plus = arma::zeros(6, n+1);
-		arma::mat body_velocities = arma::zeros(6, n+1);
-		arma::mat body_forces = arma::zeros(6, n+1);
-		std::vector<arma::mat> G_fractal(n);
-		std::vector<arma::mat> frac_v(n);
-		arma::mat D;
-		arma::mat eta;
-		std::vector<double> dydt_out(system_total_dof*2, 0.0);
-*/
-
 	forward_parameters p(n,system_total_dof);
 
 
@@ -216,50 +198,55 @@ void SystemOfBodies::solve_forward_dynamics() {
 
 	// Observer lambda
 	auto obs = [&](const std::vector<double>& y, double t) {
-
-
 		results.push_back(t);
 
 		for (size_t k = 0; k < n; k++) {
-			store_accelerations.col(t/dt).rows(k*6,(k+1)*6-1) = p.accel.col(k);
-			store_velocities.col(t/dt).rows(k*6,(k+1)*6-1) = p.body_velocities.col(k);
-			store_forces.col(t/dt).rows(k*6,(k+1)*6-1) = p.body_forces.col(k);
+			store_accelerations.col(p.hidden_index).rows(k*6,(k+1)*6-1) = p.accel.col(k);
+			store_velocities.col(p.hidden_index).rows(k*6,(k+1)*6-1) = p.body_velocities.col(k);
+			store_forces.col(p.hidden_index).rows(k*6,(k+1)*6-1) = p.body_forces.col(k);
 		}
 
 		//state is save from y which holds positions and velocities - and then accelerations are obtained from a dummy variable as dydt is hidden in solver internal state
 		results.insert(results.end(), y.begin() , y.end());
 		results.insert(results.end(), p.dydt_out.begin() + system_total_dof, p.dydt_out.end());
 
-
-
+		p.hidden_index++;
 	};
 
+
+	auto start = std::chrono::high_resolution_clock::now();
+
 	if (has_dynamic_time_step == false) {
-		// body frame storage
-	arma::mat store_velocities = arma::zeros(n*6,t/dt+1);
-	arma::mat store_accelerations = arma::zeros(n*6,t/dt+1);
-	arma::mat store_forces = arma::zeros(n*6,t/dt+1);
+
 		runge_kutta_fehlberg78<std::vector<double>> stepper;
 		integrate_const(
 			stepper,
 			[&](const std::vector<double>& y, std::vector<double>& dydt, double t) {
-				system_of_equations_forward_dynamics_test(y, dydt, t,p);
+				system_of_equations_forward_dynamics(y, dydt,p);
 			},
 			system_state, t0, t, dt, obs
 		);
 	}
-	else {/*
+	else {
+
+
 		dense_output_runge_kutta< controlled_runge_kutta< runge_kutta_dopri5< std::vector<double> > > > dense;
 		integrate_adaptive(
 			dense,
 			[&](const std::vector<double>& y, std::vector<double>& dydt, double t) {
-				system_of_equations_forward_dynamics(y, dydt, t, P_plus, J_fractal_plus, tau_bar, P, J_fractal,
-			accel, accel_plus, body_velocities, G_fractal, frac_v,eta,D,body_forces, dydt_out);
+				system_of_equations_forward_dynamics(y, dydt,p);
 			},
 			system_state, t0, t, dt, obs
 		);
-*/
 	}
+
+
+
+	auto end = std::chrono::high_resolution_clock::now();
+
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+	std::cout << "Time: " << duration.count() << " microseconds\n";
 	// format generalized results
 	ParsedData formatted_results = parseResults(results);
 
@@ -275,3 +262,4 @@ void SystemOfBodies::solve_forward_dynamics() {
 
 
 	}
+

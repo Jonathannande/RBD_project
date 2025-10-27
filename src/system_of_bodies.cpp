@@ -3,7 +3,6 @@
 //
 
 #include "system_of_bodies.h"
-
 #include <boost/numeric/odeint.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/quadrature/gauss.hpp>
@@ -22,12 +21,8 @@ using namespace boost::math::float_constants;
 using namespace boost::numeric::odeint;
 
 
-
-//we need to use some pointer for this thing
-
-
 	//modified parsed result to fit arbitrary hinge_map
-	ParsedData SystemOfBodies::parseResults(std::vector<double>& results)
+	ParsedData SystemOfBodies::parseResults(const std::vector<double>& results) const
 	{
 
 	    const size_t row_size = 1 + 3*system_total_dof;
@@ -42,10 +37,11 @@ using namespace boost::numeric::odeint;
 	    data.accel.assign(system_total_dof, std::vector<double>(steps));
 
 
+		size_t offset;
 
 	    for (size_t s = 0; s < steps; s++)
 	    {
-	        size_t offset = s * row_size;
+	        offset = s * row_size;
 	        data.times[s] = results[offset];
 
 	        for (size_t i = 0; i < system_total_dof; i++) {
@@ -78,55 +74,23 @@ using namespace boost::numeric::odeint;
 
 	}
 
-
-
 	//this function receives the generalized positions at each time step, converts the dofs of each body and uses it to compute the input vector needed for the spatial operator.
-	arma::mat SystemOfBodies::find_spatial_operator_input_vector(std::vector<arma::vec>& DoFs) {
+	arma::mat SystemOfBodies::find_spatial_operator_input_vector(const std::vector<arma::vec>& DoFs) const{
 		arma::mat return_vector = arma::zeros(n,6);
 
 		//uses the modified theta
 		for (int i = 0; i<n; ++i) {
-			return_vector.row(i) = (bodies[i]->hinge_map.t()*DoFs[i] + (bodies[i]->position_vec_hinge_big-bodies[i]->outboard_position_vec_hinge_big)).t();
+			return_vector.row(i) = (bodies[i]->hinge_map.t()*DoFs[i] + (bodies[i]->hinge_pos-bodies[i]->out_hinge_pos)).t();
 		}
 		return return_vector;
 	}
 
 
-	/*
-	std::vector<arma::vec> SystemOfBodies::to_arma_vec(std::vector<double> DoFs) {
-
-		std::vector<arma::vec> return_vector;
-
-		int start_idx{0};
-
-		for (int i = 0; i<n; ++i) {
-
-			return_vector.push_back(arma::vec(DoFs.data() + start_idx, system_dofs_distribution[i], true));
-			start_idx += system_dofs_distribution[i];
-		}
-		return return_vector;
-	}
-
-
-
-	std::vector<double> SystemOfBodies::to_std_vec(std::vector<arma::vec>& DoFs) {
-		std::vector<double> return_vector;
-
-		for (int i = 0; i < n; ++i)
-		{
-			for (int j = 0; j < system_dofs_distribution[i]; ++j)
-			{
-				return_vector.push_back(DoFs[i](j));
-			}
-		}
-		return return_vector;
-	}
-
-*/
-	void SystemOfBodies::set_stepper_type(bool is_dynamic) {
+	void SystemOfBodies::set_stepper_type(const bool& is_dynamic) {
 		has_dynamic_time_step = is_dynamic;
 	}
-	std::vector<arma::vec> SystemOfBodies::to_arma_vec(const std::vector<double>& DoFs) {
+
+	std::vector<arma::vec> SystemOfBodies::to_arma_vec(const std::vector<double>& DoFs) const {
 		std::vector<arma::vec> return_vector;
 		return_vector.reserve(n);
 		arma::vec slice;
@@ -152,34 +116,11 @@ using namespace boost::numeric::odeint;
 		return return_vector;
 	}
 
-
-
-	void SystemOfBodies::test_method() {
-		//takes current state of the solver and creates the generalized coordinates
-
-	    std::vector<double> theta_standard_form(system_state.begin() , system_state.end()-system_state.size()/2);
-
-	    std::vector<double> theta_dot_standard_form(system_state.begin()+system_state.size()/2, system_state.end());
-
-	    std::vector<arma::vec> theta = to_arma_vec(theta_standard_form);
-
-	    std::vector<arma::vec> theta_dot = to_arma_vec(theta_dot_standard_form);
-	    for (int i = 0; i < theta.size(); ++i)
-
-	    {
-	    	//std::cout << "The postional state of theta " << i << " has the value of " << theta[i]<< std::endl;
-	    	//std::cout << "The postional state of theta_dot " << i << " has the value of " << theta_dot[i]<< std::endl;
-	    }
-
-	}
-
 	void SystemOfBodies::solve_hybrid_dynamics() {
 
 	}
 
-	void SystemOfBodies::get_states_forward_dynamics() {
 
-	}
 
 	//method that adds body to system.
 	void SystemOfBodies::create_body(std::unique_ptr<Body> any_body) {
@@ -194,13 +135,7 @@ using namespace boost::numeric::odeint;
 
 
 		system_total_dof += inserted_body->hinge_map.n_rows;
-/*
 
-		for (int j = 0; j < bodies.size(); ++j){
-			idx1 = {6*j,6*(j+1)-1};
-			idx2 = {6*(k+1),6*(k+2)-1};
-		}
-		*/
     update_system_state();
 
 	}

@@ -14,14 +14,16 @@ Body::Body(double mass) : m(mass) {
     bool is_dependent_hingemap = false; // used for hinge maps with dependence on a variable - not currently implemented
 }
 
+// Setting methods
+
 void Body::set_position_vec_hinge(arma::vec &input_vec) {
-    position_vec_hinge = input_vec;
-    position_vec_hinge_big = join_vert(arma::zeros(3,1), input_vec);
+
+    hinge_pos = join_vert(arma::zeros(3,1), input_vec);
 }
 
 void Body::set_outboard_position_vec_hinge(arma::vec input_vec) {
-    outboard_position_vec_hinge = input_vec;
-    outboard_position_vec_hinge_big = join_vert(arma::zeros(3,1), input_vec);
+
+    out_hinge_pos = join_vert(arma::zeros(3,1), input_vec);
 }
 
 void Body::set_hinge_map(arma::mat hinge_map_input) {
@@ -36,6 +38,8 @@ void Body::set_hinge_state(arma::vec hinge_state_input) {
     }
 
 }
+
+// Inverse specific
 
 void Body::set_position_for_inverse_dyn(const std::string func) {
     inverse_dynamics_funcs.push_back(func);
@@ -60,13 +64,15 @@ void Body::set_functions_for_inverse_dyn(const std::vector<std::string> &funcs) 
 }
 
 
+
+
 // Rectangle class implementations
-Rectangle::Rectangle(double length, double width, double height, double mass)
+Rectangle_computed::Rectangle_computed(const double length,const double width,const double height,const double mass)
     : Body(mass), l(length), b(width), h(height) {
     transform_vector = {0,0,0,0,l,0};
 }
 
-void Rectangle::compute_inertia_matrix() {
+void Rectangle_computed::compute_inertia_matrix() {
     // l,b, and h refer to the dimensions of length, breadth, and height
     // inertial matrix
     arma::mat inertial_matrix_rectangle = {
@@ -76,10 +82,10 @@ void Rectangle::compute_inertia_matrix() {
     };
 
     // parallel axis theorem
-    arma::mat position_vec_tilde = tilde(-position_vec_hinge);
+    arma::mat position_vec_tilde = tilde(-hinge_pos.rows(3,5));
     arma::mat I_corner = inertial_matrix_rectangle + m*(position_vec_tilde.t()*position_vec_tilde);
     arma::mat I = arma::eye(3,3);
-    arma::mat position_vec_tilde_non_neg = tilde(position_vec_hinge);
+    arma::mat position_vec_tilde_non_neg = tilde(hinge_pos.rows(3,5));
 
     // join the matrices and construct the inertia matrix
     arma::mat upper = join_horiz(I_corner, m*position_vec_tilde_non_neg);

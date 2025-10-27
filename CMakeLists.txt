@@ -20,7 +20,8 @@ add_executable(MyProject src/main.cpp
         src/Tests_utils.cpp
         src/Tests_utils.h
         src/system_of_bodies_inverse_dynamics.cpp
-        src/system_of_bodies_forward_dynamics.cpp)
+        src/system_of_bodies_forward_dynamics.cpp
+        src/system_structure_utils.cpp)
 
 # Include directories
 target_include_directories(MyProject PRIVATE
@@ -40,11 +41,9 @@ target_link_directories(MyProject PRIVATE
 
 # Link libraries
 target_link_libraries(MyProject
-        python310          # Move Python first
+        python310
         openblas
-        sfml-graphics
-        sfml-window
-        sfml-system
+        raylib
         opengl32
         muparser
 )
