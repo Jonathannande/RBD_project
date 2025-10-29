@@ -4,7 +4,9 @@ project(MyProject)
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
 
+add_definitions(-DARMA_NO_DEBUG)
 # Add your source files here
 add_executable(MyProject src/main.cpp
         src/math_utils.cpp

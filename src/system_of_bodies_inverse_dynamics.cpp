@@ -133,7 +133,7 @@ std::vector<double> SystemOfBodies::inverse_run_funcs_2() {
 		std::vector<arma::vec> theta_acceleration = to_arma_vec(thetas.accel[3*i]);
 
 		arma::mat transform_matrix = find_spatial_operator_input_vector(theta_position);
-		arma::mat spatial_operator_dt = find_spatial_operator(transform_matrix, n);
+		arma::mat spatial_operator_dt = find_spatial_operator(transform_matrix);
 
 
 

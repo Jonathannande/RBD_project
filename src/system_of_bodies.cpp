@@ -14,7 +14,7 @@
 #include <memory>
 #include "data_types.h"
 #include "bodies.h"
-
+#include "math_utils.h"
 
 namespace plt = matplotlibcpp;
 using namespace boost::math::float_constants;
@@ -74,15 +74,55 @@ using namespace boost::numeric::odeint;
 
 	}
 
-	//this function receives the generalized positions at each time step, converts the dofs of each body and uses it to compute the input vector needed for the spatial operator.
-	arma::mat SystemOfBodies::find_spatial_operator_input_vector(const std::vector<arma::vec>& DoFs) const{
+
+
+// consists of all the rigid body transforms of the system
+arma::mat SystemOfBodies::find_spatial_operator(const arma::mat& rigid_body_transform_vector) {
+		const arma::mat I = arma::eye(6,6);
+		arma::mat spatial_operator = arma::zeros(6*(n+2),6*(n+2));
+		spatial_operator(arma::span(0,5),arma::span(0,5)) = I;
+		spatial_operator(arma::span(6*(n+1),6*(n+2)-1),arma::span(6*(n+1),6*(n+2)-1)) = I;
+
+		for (int i = 1; i < n+1; ++i)
+		{
+
+			spatial_operator(arma::span(6*i,6*(i+1)-1),arma::span(6*(i),6*(i+1)-1)) = rb_transform(rigid_body_transform_vector.row(i-1).cols(0, 2),rigid_body_transform_vector.row(i-1).cols(3, 5));
+		}
+
+
+		return spatial_operator;
+	}
+
+
+//this function receives the generalized positions at each time step, converts the dofs of each body and uses it to compute the input vector needed for the spatial operator.
+arma::mat SystemOfBodies::find_spatial_operator_input_vector(const std::vector<arma::vec>& state) const{
 		arma::mat return_vector = arma::zeros(n,6);
 
 		//uses the modified theta
 		for (int i = 0; i<n; ++i) {
-			return_vector.row(i) = (bodies[i]->hinge_map.t()*DoFs[i] + (bodies[i]->hinge_pos-bodies[i]->out_hinge_pos)).t();
+			return_vector.row(i) = (bodies[i]->hinge_map.t()*state[i] + (bodies[i]->hinge_pos-bodies[i]->out_hinge_pos)).t();
 		}
 		return return_vector;
+	}
+
+std::vector<arma::mat::fixed<6,6>> SystemOfBodies::find_spatial_operator_2(const std::vector<arma::vec>& state) const {
+
+
+		arma::mat rigid_body_transform_vector = find_spatial_operator_input_vector(state);
+		arma::mat I = arma::eye(6,6);
+		std::vector<arma::mat::fixed<6,6>> spatial_operator(n+2);
+		spatial_operator.reserve(n+2);
+		spatial_operator[0] = I; spatial_operator[n+1] = I;
+
+
+		for (int i = 1; i < n+1; ++i)
+		{
+
+			spatial_operator[i] = rb_transform(rigid_body_transform_vector.row(i-1).cols(0, 2),rigid_body_transform_vector.row(i-1).cols(3, 5));
+		}
+
+
+		return spatial_operator;
 	}
 
 
@@ -116,9 +156,7 @@ using namespace boost::numeric::odeint;
 		return return_vector;
 	}
 
-	void SystemOfBodies::solve_hybrid_dynamics() {
 
-	}
 
 
 

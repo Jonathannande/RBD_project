@@ -55,7 +55,7 @@ void test_n_body_system(const int n) {
 
         system.create_body(std::move(rec));
     }
-    //system.set_stepper_type(true);
+    system.set_stepper_type(true);
     system.solve_forward_dynamics();
 
 }
@@ -74,7 +74,7 @@ void test_three_body_from_course() {
 
         system.create_body(std::move(rec));
     }
-    //system.set_stepper_type(true);
+    system.set_stepper_type(true);
     system.solve_forward_dynamics();
 }
 
