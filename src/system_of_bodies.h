@@ -10,6 +10,7 @@
 #include <memory>
 #include "bodies.h"
 #include "data_types.h"
+#import "math_utils.h"
 
 class SystemOfBodies {
 
@@ -24,7 +25,6 @@ class SystemOfBodies {
 
     // System attributes
     std::vector<int> system_dofs_distribution;
-    std::vector<double> system_equations;
 public:
     std::vector<std::unique_ptr<Body>> bodies;
 private:
@@ -54,6 +54,9 @@ private:
         arma::mat D;
         arma::mat eta;
         std::vector<double> dydt_out;
+        std::vector<arma::vec> theta;
+        std::vector<arma::vec> theta_dot;
+        std::vector<arma::vec> theta_ddot;
         int hidden_index = 0;
 
         forward_parameters(int n_,int system_total_dof_):
@@ -68,6 +71,9 @@ private:
             body_forces(arma::zeros(6, n_+1)),
             G_fractal(n_),
             frac_v(n_),
+            theta(n_),
+            theta_dot(n_),
+            theta_ddot(n_),
             dydt_out(system_total_dof_*2, 0.0)
 
         {}
@@ -117,9 +123,9 @@ public:
     // Formatting methods
     ParsedData parseResults(const std::vector<double>& results) const;
 
-    std::vector<arma::vec> to_arma_vec(const std::vector<double>& DoFs) const; // used for conversion of state types
+    void to_arma_vec(const std::vector<double>&y, forward_parameters &p) const;// used for conversion of state types
 
-    std::vector<double> to_std_vec(const std::vector<arma::vec>& DoFs); // used for conversion of state types
+    void to_std_vec(std::vector<double>&dydt, forward_parameters &p) const; // used for conversion of state types
 
 
     // System structure
@@ -133,15 +139,15 @@ public:
 
 
     // System/body transform methods
-    arma::mat find_spatial_operator_input_vector(const std::vector<arma::vec>& DoFs) const;
+    arma::mat find_spatial_operator_input_vector(const std::vector<arma::vec>& state) const;
 
     arma::mat find_gravity_matrix_pseudo_acceleration();
 
-    arma::mat find_spatial_operator_input_vector(std::vector<double> po);
 
-    arma::mat find_spatial_operator(const arma::mat& rigid_body_transform_vector); //just a placeholder for inverse dynamics
 
-    std::vector<arma::mat::fixed<6,6>> find_spatial_operator_2(const std::vector<arma::vec>& state) const;
+
+
+    std::vector<arma::mat::fixed<6,6>> find_spatial_operator(const std::vector<arma::vec>& state) const;
 
     // run simulation methods
     void solve_inverse_dynamics();
@@ -152,7 +158,7 @@ public:
     // Forward dynamics specific
     void system_of_equations_forward_dynamics_2(const std::vector<double> &y, std::vector<double> &dydt, forward_parameters_2 &p);
 
-    void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, forward_parameters& p);
+    void system_of_equations_forward_dynamics(const std::vector<double> &y, std::vector<double> &dydt, forward_parameters& p) const;
 
     void set_stepper_type(const bool& is_dynamic);
 
@@ -162,8 +168,11 @@ public:
 
     std::vector<double> inverse_run_funcs_2();
 
+    // Methods for tree dynamics
 
+    void EOM__forward_tree(const std::vector<double> &y, std::vector<double>& dydt, forward_parameters &p) const;
 
+    void solve_forward_dynamics_tree();
 };
 
 #endif //MYPROJECT_SYSTEM_OF_BODIES_H

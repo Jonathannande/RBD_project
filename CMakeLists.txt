@@ -21,9 +21,10 @@ add_executable(MyProject src/main.cpp
         src/system_of_bodies.h
         src/Tests_utils.cpp
         src/Tests_utils.h
-        src/system_of_bodies_inverse_dynamics.cpp
+       # src/system_of_bodies_inverse_dynamics.cpp
         src/system_of_bodies_forward_dynamics.cpp
-        src/system_structure_utils.cpp)
+        src/system_structure_utils.cpp
+        src/Tree_forward_dynamics.cpp)
 
 # Include directories
 target_include_directories(MyProject PRIVATE

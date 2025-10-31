@@ -23,7 +23,7 @@ void test_single_body() {
     system.create_body(std::move(rec_1));
     system.solve_forward_dynamics();
 }
-
+/*
 void test_single_body_multi_dof() {
 
     auto rec_1 = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
@@ -41,7 +41,7 @@ void test_single_body_multi_dof() {
     system.set_stepper_type(true);
     system.solve_forward_dynamics();
 }
-
+*/
 void test_n_body_system(const int n) {
     SystemOfBodies system;
     std::array<double,2> array = {pi/4, -pi/4};
@@ -92,7 +92,7 @@ void test_inverse_dynamics_three_body_from_course() {
 
         system.create_body(std::move(rec));
     }
-    system.solve_inverse_dynamics();
+    //system.solve_inverse_dynamics();
 }
 
 void test_dense() {

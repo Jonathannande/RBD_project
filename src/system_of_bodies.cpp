@@ -75,25 +75,6 @@ using namespace boost::numeric::odeint;
 	}
 
 
-
-// consists of all the rigid body transforms of the system
-arma::mat SystemOfBodies::find_spatial_operator(const arma::mat& rigid_body_transform_vector) {
-		const arma::mat I = arma::eye(6,6);
-		arma::mat spatial_operator = arma::zeros(6*(n+2),6*(n+2));
-		spatial_operator(arma::span(0,5),arma::span(0,5)) = I;
-		spatial_operator(arma::span(6*(n+1),6*(n+2)-1),arma::span(6*(n+1),6*(n+2)-1)) = I;
-
-		for (int i = 1; i < n+1; ++i)
-		{
-
-			spatial_operator(arma::span(6*i,6*(i+1)-1),arma::span(6*(i),6*(i+1)-1)) = rb_transform(rigid_body_transform_vector.row(i-1).cols(0, 2),rigid_body_transform_vector.row(i-1).cols(3, 5));
-		}
-
-
-		return spatial_operator;
-	}
-
-
 //this function receives the generalized positions at each time step, converts the dofs of each body and uses it to compute the input vector needed for the spatial operator.
 arma::mat SystemOfBodies::find_spatial_operator_input_vector(const std::vector<arma::vec>& state) const{
 		arma::mat return_vector = arma::zeros(n,6);
@@ -105,7 +86,7 @@ arma::mat SystemOfBodies::find_spatial_operator_input_vector(const std::vector<a
 		return return_vector;
 	}
 
-std::vector<arma::mat::fixed<6,6>> SystemOfBodies::find_spatial_operator_2(const std::vector<arma::vec>& state) const {
+std::vector<arma::mat::fixed<6,6>> SystemOfBodies::find_spatial_operator(const std::vector<arma::vec>& state) const {
 
 
 		arma::mat rigid_body_transform_vector = find_spatial_operator_input_vector(state);
@@ -130,30 +111,44 @@ std::vector<arma::mat::fixed<6,6>> SystemOfBodies::find_spatial_operator_2(const
 		has_dynamic_time_step = is_dynamic;
 	}
 
-	std::vector<arma::vec> SystemOfBodies::to_arma_vec(const std::vector<double>& DoFs) const {
-		std::vector<arma::vec> return_vector;
-		return_vector.reserve(n);
-		arma::vec slice;
+	void SystemOfBodies::to_arma_vec(const std::vector<double>& y,forward_parameters &p) const{
+
+		std::vector<double> theta_standard_form(y.begin() , y.end()-system_total_dof);
+		std::vector<double> theta_dot_standard_form(y.begin()+system_total_dof, y.end());
+
+
 		int start_idx = 0;
 		for (int i = 0; i < n; ++i) {
-			 slice = arma::conv_to<arma::vec>::from(
-				std::vector<double>(DoFs.begin() + start_idx,
-								  DoFs.begin() + start_idx + system_dofs_distribution[i])
+			 p.theta[i]  = arma::conv_to<arma::vec>::from(
+				std::vector<double>(theta_standard_form.begin() + start_idx,
+								  theta_standard_form.begin() + start_idx + system_dofs_distribution[i])
 			);
-			return_vector.push_back(std::move(slice));
+			p.theta_dot[i] = arma::conv_to<arma::vec>::from(
+				std::vector<double>(theta_dot_standard_form.begin() + start_idx,
+								  theta_dot_standard_form.begin() + start_idx + system_dofs_distribution[i])
+			);
 			start_idx += system_dofs_distribution[i];
 		}
-		return return_vector;
+
 	}
 
-	std::vector<double> SystemOfBodies::to_std_vec(const std::vector<arma::vec>& DoFs) {
+	void SystemOfBodies::to_std_vec(std::vector<double>& dydt, forward_parameters& p) const {
 		std::vector<double> return_vector;
-
+		std::vector<double> temp;
 		for (int i = 0; i < n; ++i) {
-			std::vector<double> temp = arma::conv_to<std::vector<double>>::from(DoFs[i]);
+			temp = arma::conv_to<std::vector<double>>::from(p.theta_dot[i]);
 			return_vector.insert(return_vector.end(), temp.begin(), temp.end());
 		}
-		return return_vector;
+		for (int i = 0; i < n; ++i) {
+			temp = arma::conv_to<std::vector<double>>::from(p.theta_ddot[i]);
+			return_vector.insert(return_vector.end(), temp.begin(), temp.end());
+		}
+		for(size_t i = 0; i < system_total_dof; ++i){
+			dydt[i] = return_vector[i];
+			dydt[system_total_dof + i] = return_vector[system_total_dof+i];
+		}
+
+		p.dydt_out =  dydt;
 	}
 
 
