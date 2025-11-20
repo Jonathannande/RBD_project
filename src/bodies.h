@@ -11,7 +11,7 @@ public:
 
 
     // hinge types
-    arma::mat hinge_map = {0,0,1,0,0,0}; // Defualt hingemap
+    arma::mat hinge_map = {0,1,0,0,0,0}; // Defualt hingemap
     arma::mat transpose_hinge_map = hinge_map.t();
     std::string hinge_type;
     bool is_dependent_hinge_map; //is used for 2 DOF hinge
@@ -19,6 +19,8 @@ public:
     // own hinge position, vector position(s) of children
     arma::vec::fixed<6> hinge_pos; //6X1 position vector used for inertia computations - not used in BWA
     arma::vec::fixed<6> out_hinge_pos; //6X1 position vector used for transform from center of mass
+
+    std::vector<arma::vec::fixed<6>> out_hinge_tree; //
 
     // Graph attributes
     int body_ID;

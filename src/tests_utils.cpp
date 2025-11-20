@@ -6,6 +6,8 @@
 #include "tests_utils.h"
 #include "system_of_bodies.h"
 #include <raylib.h>
+#include <rlgl.h>
+#include <raymath.h>
 
 using namespace boost::math::float_constants;
 
@@ -45,8 +47,9 @@ void test_single_body_multi_dof() {
 void test_n_body_system(const int n) {
     SystemOfBodies system;
     std::array<double,2> array = {pi/4, -pi/4};
+    std::array<double,2> array_2 = {1.0,2.0};
     for (int i = 0; i < n; ++i) {
-        auto rec = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
+        auto rec = std::make_unique<Rectangle_computed>(array[i%2], 0.1, 0.2, 8.0);
         arma::vec vec=  {0, -rec->l/2.0, 0};
         rec->set_position_vec_hinge(vec);
         rec->set_outboard_position_vec_hinge({0, rec->l/2.0, 0});
@@ -74,7 +77,7 @@ void test_three_body_from_course() {
 
         system.create_body(std::move(rec));
     }
-    system.set_stepper_type(true);
+    system.set_stepper_type(false);
     system.solve_forward_dynamics();
 }
 
@@ -129,70 +132,103 @@ void test_three_body_from_course_with_viz() {
     system.set_stepper_type(true);
 
 }
+// Rotate a point around a pivot
+Vector2 RotatePointAroundPivot(Vector2 point, Vector2 pivot, float angle) {
+    float s = sinf(angle);
+    float c = cosf(angle);
 
+    Vector2 translated = { point.x - pivot.x, point.y - pivot.y };
+    Vector2 rotated = { translated.x * c - translated.y * s, translated.x * s + translated.y * c };
+
+    return (Vector2){ rotated.x + pivot.x, rotated.y + pivot.y };
+}
 void test_raylib() {
 
 
     std::array<double, 3> array = {pi/4, -pi/4, pi/4};
     SystemOfBodies system;
     for (int i = 0; i < 3; ++i) {
-        auto rec = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
-        arma::vec vec = {0, -rec->l/2.0, 0};
+        auto rec = std::make_unique<Rectangle_computed>(2, 0.1, 0.2, 8.0);
+        arma::vec vec = {0, rec->l/2.0, 0};
         rec->set_position_vec_hinge(vec);
-        rec->set_outboard_position_vec_hinge({0, rec->l/2.0, 0});
+        rec->set_outboard_position_vec_hinge(-vec);
         rec->set_hinge_state({array[i], 0});
         rec->compute_inertia_matrix();
 
         system.create_body(std::move(rec));
     }
     system.set_stepper_type(true);
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 450;
+    system.solve_forward_dynamics();
 
-    InitWindow(screenWidth, screenHeight, "raylib [models] example - geometric shapes");
+    InitWindow(1200, 800, "Pendulum Chain");
 
-    // Define the camera to look into our 3d world
-    Camera camera = { 0 };
-    camera.position = (Vector3){ 0.0f, 10.0f, 10.0f };
-    camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
-    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+    Camera3D camera = {0};
+    camera.position = (Vector3){10.0f, 5.0f, 15.0f};
+    camera.target = (Vector3){0.0f, 0.0f, 0.0f};
+    camera.up = (Vector3){0.0f, 1.0f, 0.0f};
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
-    while (!WindowShouldClose())    // Detect window close button or ESC key
-    {
-        // Update
-        //----------------------------------------------------------------------------------
-        // TODO: Update your variables here
-        //----------------------------------------------------------------------------------
+    SetTargetFPS(60);
 
-        // Draw
-        //----------------------------------------------------------------------------------
+    int n = system.n;  // number of pendulums
+    float length = 2.0f;  // rectangle length
+
+    // ParsedData data = system.parseResults(results);
+    int currentStep = 0;
+    bool playing = false;
+
+    while (!WindowShouldClose()) {
+        UpdateCamera(&camera, CAMERA_FREE);
+
+        if (IsKeyPressed(KEY_SPACE)) playing = !playing;
+        if (playing) currentStep++;
+        if (IsKeyPressed(KEY_RIGHT)) currentStep++;
+        if (IsKeyPressed(KEY_LEFT) && currentStep > 0) currentStep--;
+
         BeginDrawing();
+        ClearBackground(RAYWHITE);
+        BeginMode3D(camera);
 
-            ClearBackground(RAYWHITE);
+        DrawGrid(20, 1.0f);
 
-            BeginMode3D(camera);
+        Vector3 currentPivot = {0, 0, 0};  // First pivot at origin
 
-                DrawCube((Vector3){0.0f, 0.0f, 0.0f}, 0.1f, 0.2f, 2.0f, RED);
+        for (int i = 0; i < n; i++) {
+            std::cout << "n: " << n << " pos.size(): " << system.parsed_data.pos.size()
+          << " steps: " << system.parsed_data.pos[0].size()
+          << " currentStep: " << currentStep << std::endl;
+            // double angle = data.pos[i][currentStep];
+            double angle = system.parsed_data.pos[i][currentStep];
 
-                DrawGrid(10, 1.0f);        // Draw a grid
 
-            EndMode3D();
 
-            DrawFPS(10, 10);
+            // Draw rectangle - rotate about the pivot, not center
+            rlPushMatrix();
+            rlTranslatef(currentPivot.x, currentPivot.y, currentPivot.z);  // Move to pivot
+            rlRotatef(angle * RAD2DEG, 1, 0, 0);  // Rotate about pivot
+            DrawCube((Vector3){0, -length/2, 0}, 0.2f, length, 0.2f, BLUE);  // Draw offset from pivot
+            DrawCubeWires((Vector3){0, -length/2, 0}, 0.2f, length, 0.2f, BLACK);
+            rlPopMatrix();
+
+            DrawSphere(currentPivot, 0.05f, RED);
+
+            // Next pivot is at the end of this rectangle
+            currentPivot = (Vector3){
+                currentPivot.x,
+                currentPivot.y - length * -cosf(angle),
+                currentPivot.z + length * -sinf(angle)
+            };
+        }
+
+        EndMode3D();
+
+        DrawText(TextFormat("Step: %d | SPACE: play/pause", currentStep), 10, 10, 20, BLACK);
 
         EndDrawing();
-        //----------------------------------------------------------------------------------
     }
 
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    CloseWindow();        // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
+    CloseWindow();
 
-}
+    }
+

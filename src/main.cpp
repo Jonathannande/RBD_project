@@ -4,7 +4,7 @@
 
 int main()
 {
-	constexpr int n{6};
+	constexpr int n{90};
 
 	//test_single_body_multi_dof();
 	test_three_body_from_course();

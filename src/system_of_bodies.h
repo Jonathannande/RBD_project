@@ -13,7 +13,7 @@
 #import "math_utils.h"
 
 class SystemOfBodies {
-
+public:
     // Simulation attributes
     const double t0 {0.0};
     const double t {4.0};
@@ -25,8 +25,8 @@ class SystemOfBodies {
 
     // System attributes
     std::vector<int> system_dofs_distribution;
-public:
     std::vector<std::unique_ptr<Body>> bodies;
+    ParsedData parsed_data;
 private:
     std::vector<double> system_state;
     arma::mat system_hinge;
@@ -96,7 +96,7 @@ private:
         arma::mat D;
         arma::vec::fixed<6> eta;
         std::vector<double> dydt_out;
-        int hidden_index = 0;
+        int hidden_index = 0; // body frame coordinate storage
 
         forward_parameters_2(const int n_,const int system_total_dof_):
             P_plus(n_+1),
@@ -113,7 +113,9 @@ private:
         {}
     };
 
+    // Tree-specific attributes
 
+    int out_count = 0; // systems with bodies that have multiple children require more iterations in some loops to cover all frame transformations.
 
 
 public:
@@ -173,6 +175,16 @@ public:
     void EOM__forward_tree(const std::vector<double> &y, std::vector<double>& dydt, forward_parameters &p) const;
 
     void solve_forward_dynamics_tree();
+
+    std::vector<std::vector<arma::mat::fixed<6,6>>> find_spatial_operator_tree(const std::vector<arma::vec>& state) const;
+
+    std::vector<std::vector<arma::vec6>> find_spatial_operator_input_vector_tree(const std::vector<arma::vec>& state) const;
+
+    int child_index(const std::vector<int>& parent,const int& k_index) const;
+
+    void compute_p(const int& k, forward_parameters& p,const std::vector<std::vector<arma::mat>>& spatial_operator_dt) const ;
+
+    void compute_J_fractal(const int& k, forward_parameters& p,const std::vector<std::vector<arma::mat>>& spatial_operator_dt) const ;
 };
 
 #endif //MYPROJECT_SYSTEM_OF_BODIES_H

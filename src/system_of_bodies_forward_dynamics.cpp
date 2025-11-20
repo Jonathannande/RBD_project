@@ -19,6 +19,8 @@ using namespace boost::numeric::odeint;
 
 
 
+// The problem with this implementation is that we cant size theta at compilation. Could be known through intermediary state of system prep, or define theta as a system attribute
+
 /*
 void SystemOfBodies::system_of_equations_forward_dynamics_2(const std::vector<double> &y, std::vector<double> &dydt, forward_parameters_2 &p) {
 
@@ -97,6 +99,7 @@ void SystemOfBodies::system_of_equations_forward_dynamics(const std::vector<doub
 	to_arma_vec(y,p);
 
 	p.accel(4, n) = system_gravity;  // should be reworked
+	//p.accel(5, n) = system_gravity;  // should be reworked
 
     // Calling the methods
 	const std::vector<arma::mat::fixed<6,6>> spatial_operator_dt = find_spatial_operator(p.theta);
@@ -180,13 +183,13 @@ void SystemOfBodies::solve_forward_dynamics() {
 	auto obs = [&](const std::vector<double>& y, double t) {
 		results.push_back(t);
 
-		/*
+
 		for (size_t k = 0; k < n; k++) {
 			store_accelerations.col(p.hidden_index).rows(k*6,(k+1)*6-1) = p.accel.col(k);
 			store_velocities.col(p.hidden_index).rows(k*6,(k+1)*6-1) = p.body_velocities.col(k);
 			store_forces.col(p.hidden_index).rows(k*6,(k+1)*6-1) = p.body_forces.col(k);
 		}
-		*/
+
 
 		//state is save from y which holds positions and velocities - and then accelerations are obtained from a dummy variable as dydt is hidden in solver internal state
 		results.insert(results.end(), y.begin() , y.end());
@@ -231,6 +234,7 @@ void SystemOfBodies::solve_forward_dynamics() {
 	std::cout << "Time: " << duration.count() << " microseconds\n";
 	// format generalized results
 	ParsedData formatted_results = parseResults(results);
+	parsed_data = formatted_results;
 
 	// plot generalized results
 	plot_thetas(formatted_results, system_total_dof);
