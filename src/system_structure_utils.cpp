@@ -1,7 +1,7 @@
 //
 // Created by Jonathan on 10/26/2025.
 //
-#import "system_of_bodies.h"
+#include "system_of_bodies.h"
 
 
 void SystemOfBodies::set_BWA() {

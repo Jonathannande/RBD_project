@@ -21,4 +21,5 @@ void test_three_body_from_course_with_viz();
 
 void test_raylib();
 
+void test_tree_dynamics();
 #endif //MYPROJECT_TESTS_UTILS_H

@@ -1,14 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
-project(MyProject)
+project(P)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -march=native")
+# For normal building (optimized, no debug symbols)
 
-add_definitions(-DARMA_NO_DEBUG)
+#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 # Add your source files here
-add_executable(MyProject src/main.cpp
+add_executable(P src/main.cpp
         src/math_utils.cpp
         src/math_utils.h
         src/plotting_utils.cpp
@@ -19,39 +23,37 @@ add_executable(MyProject src/main.cpp
         src/bodies.h
         src/system_of_bodies.cpp
         src/system_of_bodies.h
-        src/Tests_utils.cpp
-        src/Tests_utils.h
+        src/tests_utils.cpp
+        src/tests_utils.h
        # src/system_of_bodies_inverse_dynamics.cpp
         src/system_of_bodies_forward_dynamics.cpp
         src/system_structure_utils.cpp
-        #src/Tree_forward_dynamics.cpp
+        src/Tree_forward_dynamics.cpp
 )
 
-# Include directories
-target_include_directories(MyProject PRIVATE
-        "C:/cpp_libraries/armadillo-14.2.2/armadillo-14.2.2/include"
-        "C:/msys64/mingw64/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "C:/Python310/include"
-        "C:/Python310/Lib/site-packages/numpy/core/include"
+target_link_libraries(P
+    armadillo
+    openblas
+    raylib
+    muparser
+    Python3::Python
 )
 
-# Library directories
-target_link_directories(MyProject PRIVATE
-        "C:/cpp_libraries/OpenBLAS-0.3.29_x64/lib"
-        "C:/msys64/mingw64/lib"
-        "C:/Python310/libs"
+
+# Find Python development files
+find_package(Python3 COMPONENTS Development)
+
+# Add Python include directory
+# Get NumPy include directory
+execute_process(
+    COMMAND python -c "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-# Link libraries
-target_link_libraries(MyProject
-        python310
-        openblas
-        raylib
-        opengl32
-        muparser
+# Add to include directories
+target_include_directories(P PRIVATE
+    ${Python3_INCLUDE_DIRS}
+    ${NUMPY_INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src  # your source directory
 )
-
-# Set the compiler (MinGW)
-set(CMAKE_CXX_COMPILER "C:/msys64/mingw64/bin/g++.exe")
-set(CMAKE_C_COMPILER "C:/msys64/mingw64/bin/gcc.exe")
