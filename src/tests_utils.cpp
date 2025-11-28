@@ -130,7 +130,7 @@ void test_three_body_from_course_with_viz() {
 
     system.create_body(std::move(rec));
   }
-  system.set_stepper_type(true);
+  system.set_stepper_type(false);
 }
 // Rotate a point around a pivot
 Vector2 RotatePointAroundPivot(Vector2 point, Vector2 pivot, float angle) {

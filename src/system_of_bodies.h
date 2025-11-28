@@ -41,64 +41,37 @@ private:
 
   // Sorward dynamic specific attributes
   struct forward_parameters {
-    arma::mat P_plus;
-    arma::mat J_fractal_plus;
-    arma::mat tau_bar;
-    arma::mat P;
-    arma::mat J_fractal;
-    arma::mat accel;
-    arma::mat accel_plus;
-    arma::mat body_velocities;
-    arma::mat body_forces;
-    std::vector<arma::mat> G_fractal;
+    std::vector<arma::mat> P_plus;
+    std::vector<arma::vec> J_fractal_plus;
+    std::vector<arma::vec> J_fractal;
+    std::vector<arma::mat> tau_bar;
+    std::vector<arma::mat> P;
+    std::vector<arma::vec> accel;
+    std::vector<arma::vec> accel_plus;
+    std::vector<arma::vec> body_velocities;
+    std::vector<arma::vec> body_forces;
+    std::vector<arma::vec> G_fractal;
     std::vector<arma::mat> frac_v;
     arma::mat D;
-    arma::mat eta;
+    arma::vec eta;
     std::vector<double> dydt_out;
+    int hidden_index = 0; // body frame coordinate storage
     std::vector<arma::vec> theta;
     std::vector<arma::vec> theta_dot;
     std::vector<arma::vec> theta_ddot;
-    int hidden_index = 0;
-
-    forward_parameters(int n_, int system_total_dof_)
-        : P_plus(arma::zeros(6 * (n_ + 1), 6 * (n_ + 1))),
-          J_fractal_plus(arma::zeros(6, n_ + 1)),
-          tau_bar(arma::zeros(6 * n_, 6 * (n_ + 1))),
-          P(arma::zeros(6 * n_, 6 * (n_ + 1))),
-          J_fractal(arma::zeros(6, n_ + 1)), accel(arma::zeros(6, n_ + 1)),
-          accel_plus(arma::zeros(6, n_ + 1)),
-          body_velocities(arma::zeros(6, n_ + 1)),
-          body_forces(arma::zeros(6, n_ + 1)), G_fractal(n_), frac_v(n_),
-          theta(n_), theta_dot(n_), theta_ddot(n_),
-          dydt_out(system_total_dof_ * 2, 0.0)
-
-    {}
-  };
-
-  // Sorward dynamic specific attributes
-  struct forward_parameters_2_fixed {
-    std::vector<arma::mat::fixed<6, 6>> P_plus;
-    std::vector<arma::vec::fixed<6>> J_fractal_plus;
-    std::vector<arma::vec::fixed<6>> J_fractal;
-    std::vector<arma::mat::fixed<6, 6>> tau_bar;
-    std::vector<arma::mat::fixed<6, 6>> P;
-    arma::mat::fixed<6, 6> accel;
-    arma::mat::fixed<6, 6> accel_plus;
-    std::vector<arma::vec::fixed<6>> body_velocities;
-    std::vector<arma::vec::fixed<6>> body_forces;
-    std::vector<arma::vec::fixed<6>> G_fractal;
-    std::vector<arma::mat::fixed<6, 6>> frac_v;
-    arma::mat D;
-    arma::vec::fixed<6> eta;
-    std::vector<double> dydt_out;
-    int hidden_index = 0; // body frame coordinate storage
-
-    forward_parameters_2_fixed(const int n_, const int system_total_dof_)
+    forward_parameters(const int n_, const int system_total_dof_)
         : P_plus(n_ + 1), J_fractal_plus(n_ + 1), tau_bar(n_), P(n_),
           J_fractal(n_), body_velocities(n_ + 1), body_forces(n_ + 1),
-          G_fractal(n_ + 1), frac_v(n_), dydt_out(system_total_dof_ * 2, 0.0)
+          G_fractal(n_ + 1), frac_v(n_), dydt_out(system_total_dof_ * 2, 0.0),
+          theta(n_), theta_dot(n_), theta_ddot(n_), accel(n_ + 1),
+          accel_plus(n_ + 1)
 
-    {}
+    {
+      accel[n_] = arma::vec(6, arma::fill::zeros);
+      body_velocities[n_] = arma::vec(6, arma::fill::zeros);
+      P_plus[0] = arma::mat(6, 6, arma::fill::zeros);
+      J_fractal_plus[0] = arma::vec(6, arma::fill::zeros);
+    }
   };
 
   // Tree-specific attributes
@@ -148,9 +121,6 @@ public:
   void solve_forward_dynamics();
 
   // Forward dynamics specific
-  void system_of_equations_forward_dynamics_2(const std::vector<double> &y,
-                                              std::vector<double> &dydt,
-                                              forward_parameters_2_fixed &p);
 
   void system_of_equations_forward_dynamics(const std::vector<double> &y,
                                             std::vector<double> &dydt,

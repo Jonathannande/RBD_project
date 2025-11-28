@@ -20,6 +20,7 @@ using namespace boost::numeric::odeint;
 // Formatting
 
 // conversion of the state vector to arma::vec
+
 void SystemOfBodies::to_arma_vec(const std::vector<double> &y,
                                  forward_parameters &p) const {
 
@@ -40,6 +41,8 @@ void SystemOfBodies::to_arma_vec(const std::vector<double> &y,
 
 // conversion of the arma::vec representation of the state vector back to
 // std::vector
+//
+
 void SystemOfBodies::to_std_vec(std::vector<double> &dydt,
                                 forward_parameters &p) const {
   std::vector<double> return_vector;

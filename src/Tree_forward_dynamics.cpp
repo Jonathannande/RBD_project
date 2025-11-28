@@ -23,7 +23,7 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
   // dofs of each body
   to_arma_vec(y, p);
 
-  p.accel(4, n) = system_gravity; // should be reworked
+  p.accel[n](4) = system_gravity;
 
   // Calling the methods
   const std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator_dt =
@@ -34,9 +34,9 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
 
   // the current form is pretty nasty - should consider a rewrite eventually
   for (int k = n - 1; k > -1; --k) {
-    p.body_velocities.col(k) =
+    p.body_velocities[k] =
         spatial_operator_dt[bodies[k]->parent_ID][get_child_index(k)].t() *
-            p.body_velocities.col(bodies[k]->parent_ID - 1) +
+            p.body_velocities[bodies[k]->parent_ID - 1] +
         bodies[k]->transpose_hinge_map * p.theta_dot[k];
   }
 
@@ -44,43 +44,39 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
 
     compute_p(k, p, spatial_operator_dt);
 
-    p.D = bodies[k]->hinge_map * p.P(span_k1_[k], span_k1_[k]) *
-          bodies[k]->transpose_hinge_map;
+    p.D = bodies[k]->hinge_map * p.P[k] * bodies[k]->transpose_hinge_map;
 
-    p.G_fractal[k] = p.P(span_k1_[k], span_k1_[k]) *
-                     bodies[k]->transpose_hinge_map * arma::inv(trimatu(p.D));
+    p.G_fractal[k] =
+        p.P[k] * bodies[k]->transpose_hinge_map * arma::inv(trimatu(p.D));
 
-    p.tau_bar(span_k1_[k], span_k1_[k]) =
-        arma::eye(6, 6) - p.G_fractal[k] * bodies[k]->hinge_map;
+    p.tau_bar[k] = arma::eye(6, 6) - p.G_fractal[k] * bodies[k]->hinge_map;
 
-    p.P_plus(span_k2_[k], span_k2_[k]) =
-        p.tau_bar(span_k1_[k], span_k1_[k]) * p.P(span_k1_[k], span_k1_[k]);
+    p.P_plus[k + 1] = p.tau_bar[k] * p.P[k];
 
     compute_J_fractal(k, p, spatial_operator_dt);
 
-    p.eta = -bodies[k]->hinge_map * p.J_fractal.col(k);
+    p.eta = -bodies[k]->hinge_map * p.J_fractal[k];
 
     p.frac_v[k] = arma::solve(trimatu(p.D), p.eta);
 
-    p.J_fractal_plus.col(k + 1) = p.J_fractal.col(k) + p.G_fractal[k] * p.eta;
+    p.J_fractal_plus[k + 1] = p.J_fractal[k] + p.G_fractal[k] * p.eta;
   }
 
   for (int k = n - 1; k > -1; --k) {
 
-    p.accel_plus.col(k) =
+    p.accel_plus[k] =
         spatial_operator_dt[bodies[k]->parent_ID + 1][get_child_index(k)].t() *
-        p.accel.col(k + 1);
-    p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus.col(k);
-    p.accel.col(k) = p.accel_plus.col(k) +
-                     bodies[k]->transpose_hinge_map * p.theta_ddot[k] +
-                     coriolis_vector(bodies[k]->transpose_hinge_map,
-                                     p.body_velocities.col(k), p.theta_dot[k]);
+        p.accel[k + 1];
+    p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus[k];
+    p.accel[k] = p.accel_plus[k] +
+                 bodies[k]->transpose_hinge_map * p.theta_ddot[k] +
+                 coriolis_vector(bodies[k]->transpose_hinge_map,
+                                 p.body_velocities[k], p.theta_dot[k]);
   }
 
   for (int k = 0; k < n; ++k) {
-    p.body_forces.col(k) =
-        p.P_plus(span_k2_[k], span_k2_[k]) * p.accel_plus.col(k) +
-        p.J_fractal_plus.col(k + 1);
+    p.body_forces[k] =
+        p.P_plus[k + 1] * p.accel_plus[k] + p.J_fractal_plus[k + 1];
   }
 
   to_std_vec(dydt, p);
@@ -101,7 +97,6 @@ void SystemOfBodies::solve_forward_dynamics_tree() {
   }
 
   forward_parameters p(n, system_total_dof);
-  forward_parameters_2_fixed p_2(n, system_total_dof);
 
   // single vector to store data
   std::vector<double> results;
@@ -119,10 +114,10 @@ void SystemOfBodies::solve_forward_dynamics_tree() {
     /*
     for (size_t k = 0; k < n; k++) {
             store_accelerations.col(p.hidden_index).rows(k*6,(k+1)*6-1) =
-    p.accel.col(k); store_velocities.col(p.hidden_index).rows(k*6,(k+1)*6-1) =
-    p.body_velocities.col(k);
+    p.accel[k]; store_velocities.col(p.hidden_index).rows(k*6,(k+1)*6-1) =
+    p.body_velocities[k];
             store_forces.col(p.hidden_index).rows(k*6,(k+1)*6-1) =
-    p.body_forces.col(k);
+    p.body_forces[k];
     }
     */
 
@@ -251,24 +246,20 @@ void SystemOfBodies::compute_J_fractal(
     const {
 
   if (bodies[k]->children_ID.size() == 1) {
-    p.J_fractal.col(k) =
-        spatial_operator_dt[k][0] * p.J_fractal_plus.col(k) +
-        p.P(span_k1_[k], span_k1_[k]) *
-            coriolis_vector(bodies[k]->transpose_hinge_map,
-                            p.body_velocities.col(k), p.theta_dot[k]) +
-        gyroscopic_force_z(bodies[k]->inertial_matrix,
-                           p.body_velocities.col(k));
+    p.J_fractal[k] =
+        spatial_operator_dt[k][0] * p.J_fractal_plus[k] +
+        p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
+                                 p.body_velocities[k], p.theta_dot[k]) +
+        gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   } else {
-    p.J_fractal.col(k) = arma::zeros<arma::vec>(6);
+    p.J_fractal[k] = arma::zeros<arma::vec>(6);
     for (size_t i = 0; i < bodies[k]->children_ID.size(); ++i) {
-      p.J_fractal.col(k) += spatial_operator_dt[k][i] * p.J_fractal_plus.col(k);
+      p.J_fractal[k] += spatial_operator_dt[k][i] * p.J_fractal_plus[k];
     }
-    p.J_fractal.col(k) +=
-        p.P(span_k1_[k], span_k1_[k]) *
-            coriolis_vector(bodies[k]->transpose_hinge_map,
-                            p.body_velocities.col(k), p.theta_dot[k]) +
-        gyroscopic_force_z(bodies[k]->inertial_matrix,
-                           p.body_velocities.col(k));
+    p.J_fractal[k] +=
+        p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
+                                 p.body_velocities[k], p.theta_dot[k]) +
+        gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   }
 }
 
@@ -278,17 +269,15 @@ void SystemOfBodies::compute_p(
     const {
 
   if (bodies[k]->children_ID.size() == 1) {
-    p.P(span_k1_[k], span_k1_[k]) = spatial_operator_dt[k][0] *
-                                        p.P_plus(span_k1_[k], span_k1_[k]) *
-                                        spatial_operator_dt[k][0].t() +
-                                    bodies[k]->inertial_matrix;
+    p.P[k] = spatial_operator_dt[k][0] * p.P_plus[k] *
+                 spatial_operator_dt[k][0].t() +
+             bodies[k]->inertial_matrix;
   } else {
-    p.P(span_k1_[k], span_k1_[k]) = arma::zeros<arma::mat>(6, 6);
+    p.P[k] = arma::zeros<arma::mat>(6, 6);
     for (int i = 0; i < bodies[k]->children_ID.size(); ++i) {
-      p.P(span_k1_[k], span_k1_[k]) += spatial_operator_dt[k][i] *
-                                       p.P_plus(span_k1_[k], span_k1_[k]) *
-                                       spatial_operator_dt[k][i].t();
+      p.P[k] += spatial_operator_dt[k][i] * p.P_plus[k] *
+                spatial_operator_dt[k][i].t();
     }
-    p.P(span_k1_[k], span_k1_[k]) += bodies[k]->inertial_matrix;
+    p.P[k] += bodies[k]->inertial_matrix;
   }
 }
