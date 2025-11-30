@@ -146,12 +146,13 @@ Vector2 RotatePointAroundPivot(Vector2 point, Vector2 pivot, float angle) {
 
 void test_tree_dynamics() {
 
-  std::array<double, 5> array_hinge_state = {0, -pi / 4, pi / 4, pi / 2, 0};
+  std::array<double, 5> array_hinge_state = {pi / 4, -pi / 4, pi / 4, pi / 2,
+                                             pi / 3};
   auto rec = Rectangle_computed(2.0, 0.1, 0.2, 8.0);
 
   std::array<arma::vec, 5> array_out_vec = {{{0, rec.l / 2, 0},
-                                             {0.05, rec.l / 2, 0},
-                                             {-0.05, rec.l / 2, 0},
+                                             {0, rec.l / 2, 0},
+                                             {0, rec.l / 2, 0},
                                              {0, rec.l / 2, 0},
                                              {0, rec.l / 2, 0}}};
   //    std::cout<<array_out_vec<<std::endl;
@@ -171,6 +172,7 @@ void test_tree_dynamics() {
   system.set_parent(2, 4, true);
   system.set_parent(1, 3, true);
 
+  system.bodies[0]->children_ID[0] = 0;
   system.bodies[4]->set_outboard_position_vec_hinge_push(array_out_vec[1]);
   system.bodies[4]->set_outboard_position_vec_hinge_push(array_out_vec[2]);
   system.bodies[3]->set_outboard_position_vec_hinge_push(array_out_vec[0]);

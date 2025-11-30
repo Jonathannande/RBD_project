@@ -169,7 +169,7 @@ void SystemOfBodies::prep_system() {
   }
 }
 
-// set's a given bodies uses mathematical indexing (starts at 1 ends at n)
+// sets a given bodies uses mathematical indexing (starts at 1 ends at n)
 void SystemOfBodies::set_parent(const int &idx, const int &parent,
                                 const bool &is_only_child) {
   bodies[idx - 1]->parent_ID = parent;

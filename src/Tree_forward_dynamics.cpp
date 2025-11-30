@@ -23,16 +23,15 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
   // dofs of each body
   to_arma_vec(y, p);
 
+  // Sets system gravity, currently hard-coded should ideally be more general.
   p.accel[n](4) = system_gravity;
 
-  // Calling the methods
   const std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator_dt =
       find_spatial_operator_tree(p.theta);
 
   // now we start sweeping n times in total, first kinematics which has in part
   // already been done through the spatial operator, but now velocities
 
-  // the current form is pretty nasty - should consider a rewrite eventually
   for (int k = n - 1; k > -1; --k) {
     p.body_velocities[k] =
         spatial_operator_dt[bodies[k]->parent_ID][get_child_index(k)].t() *
@@ -65,8 +64,8 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
   for (int k = n - 1; k > -1; --k) {
 
     p.accel_plus[k] =
-        spatial_operator_dt[bodies[k]->parent_ID + 1][get_child_index(k)].t() *
-        p.accel[k + 1];
+        spatial_operator_dt[bodies[k]->parent_ID][get_child_index(k)].t() *
+        p.accel[bodies[k]->parent_ID - 1];
     p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus[k];
     p.accel[k] = p.accel_plus[k] +
                  bodies[k]->transpose_hinge_map * p.theta_ddot[k] +
@@ -226,6 +225,8 @@ SystemOfBodies::find_spatial_operator_tree(
   return spatial_operator;
 }
 
+// This method gets the index of a child's id as it is stored in the parent's
+// outboard vector.
 int SystemOfBodies::get_child_index(const int &k_index) const {
   if (k_index >= n - 1) {
     return 0;
@@ -240,21 +241,29 @@ int SystemOfBodies::get_child_index(const int &k_index) const {
   return i;
 }
 
+// int SystemOfBodies::get_each_child(const int& k_index,)
+
 void SystemOfBodies::compute_J_fractal(
     const int &k, forward_parameters &p,
     const std::vector<std::vector<arma::mat::fixed<6, 6>>> &spatial_operator_dt)
     const {
-
-  if (bodies[k]->children_ID.size() == 1) {
+  if (bodies[k]->children_ID[0] == 0) {
     p.J_fractal[k] =
-        spatial_operator_dt[k][0] * p.J_fractal_plus[k] +
+        p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
+                                 p.body_velocities[k], p.theta_dot[k]) +
+        gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
+  } else if (bodies[k]->children_ID.size() == 1) {
+    p.J_fractal[k] =
+        spatial_operator_dt[bodies[k]->children_ID[0]][0] *
+            p.J_fractal_plus[bodies[k]->children_ID[0] - 1] +
         p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
                                  p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   } else {
     p.J_fractal[k] = arma::zeros<arma::vec>(6);
     for (size_t i = 0; i < bodies[k]->children_ID.size(); ++i) {
-      p.J_fractal[k] += spatial_operator_dt[k][i] * p.J_fractal_plus[k];
+      p.J_fractal[k] += spatial_operator_dt[bodies[k]->children_ID[i]][0] *
+                        p.J_fractal_plus[bodies[k]->children_ID[i] - 1];
     }
     p.J_fractal[k] +=
         p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
@@ -267,16 +276,20 @@ void SystemOfBodies::compute_p(
     const int &k, forward_parameters &p,
     const std::vector<std::vector<arma::mat::fixed<6, 6>>> &spatial_operator_dt)
     const {
-
-  if (bodies[k]->children_ID.size() == 1) {
-    p.P[k] = spatial_operator_dt[k][0] * p.P_plus[k] *
-                 spatial_operator_dt[k][0].t() +
+  // terminal bodies k_index should always be 0
+  if (bodies[k]->children_ID[0] == 0) {
+    p.P[k] = bodies[k]->inertial_matrix;
+  } else if (bodies[k]->children_ID.size() == 1) {
+    p.P[k] = spatial_operator_dt[bodies[k]->children_ID[0]][0] *
+                 p.P_plus[bodies[k]->children_ID[0] - 1] *
+                 spatial_operator_dt[bodies[k]->children_ID[0]][0].t() +
              bodies[k]->inertial_matrix;
   } else {
     p.P[k] = arma::zeros<arma::mat>(6, 6);
     for (int i = 0; i < bodies[k]->children_ID.size(); ++i) {
-      p.P[k] += spatial_operator_dt[k][i] * p.P_plus[k] *
-                spatial_operator_dt[k][i].t();
+      p.P[k] += spatial_operator_dt[bodies[k]->children_ID[i]][0] *
+                p.P_plus[bodies[k]->children_ID[i] - 1] *
+                spatial_operator_dt[bodies[k]->children_ID[i]][0].t();
     }
     p.P[k] += bodies[k]->inertial_matrix;
   }
