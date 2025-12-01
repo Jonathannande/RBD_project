@@ -64,7 +64,7 @@ void test_n_body_system(const int n) {
 }
 
 void test_three_body_from_course() {
-  std::array<double, 3> array = {pi / 4, -pi / 4, pi / 4};
+  std::array<double, 3> array = {pi, -pi / 4, pi / 6};
   SystemOfBodies system;
   for (int i = 0; i < 3; ++i) {
     auto rec = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
@@ -146,7 +146,7 @@ Vector2 RotatePointAroundPivot(Vector2 point, Vector2 pivot, float angle) {
 
 void test_tree_dynamics() {
 
-  std::array<double, 5> array_hinge_state = {pi / 4, -pi / 4, pi / 4, pi / 2,
+  std::array<double, 5> array_hinge_state = {pi / 6, -pi / 5, pi / 7, pi / 2,
                                              pi / 3};
   auto rec = Rectangle_computed(2.0, 0.1, 0.2, 8.0);
 

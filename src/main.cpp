@@ -4,13 +4,13 @@ int main() {
   constexpr int n{100};
 
   // test_single_body_multi_dof();
-  // test_three_body_from_course();
+  test_three_body_from_course();
   // test_n_body_system(n);
   // test_inverse_dynamics_three_body_from_course();
   // test_dense();
   // test_three_body_from_course_with_viz();
   // test_raylib();
-  test_tree_dynamics();
+  // test_tree_dynamics();
 
   return 0;
 }

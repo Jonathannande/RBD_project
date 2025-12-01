@@ -39,7 +39,7 @@ private:
   std::vector<arma::span> span_k2_;
   bool spans_initialized{false};
 
-  // Sorward dynamic specific attributes
+  // Forward dynamic specific attributes
   struct forward_parameters {
     std::vector<arma::mat> P_plus;
     std::vector<arma::vec> J_fractal_plus;
