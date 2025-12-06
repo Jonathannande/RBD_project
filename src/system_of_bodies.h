@@ -9,6 +9,7 @@
 #include "data_types.h"
 #include "math_utils.h"
 #include <armadillo>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -16,9 +17,9 @@ class SystemOfBodies {
 public:
   // Simulation attributes
   const double t0{0.0};
-  const double t{4.0};
+  const double t{0.19};
   const double dt{0.01};
-  const double system_gravity{9.81};
+  const float system_gravity{9.81};
   int n{0};
   int system_total_dof = {0};
   bool has_dynamic_time_step{false};
@@ -64,7 +65,7 @@ private:
           J_fractal(n_), body_velocities(n_ + 1), body_forces(n_ + 1),
           G_fractal(n_ + 1), frac_v(n_), dydt_out(system_total_dof_ * 2, 0.0),
           theta(n_), theta_dot(n_), theta_ddot(n_), accel(n_ + 1),
-          accel_plus(n_ + 1)
+          accel_plus(n_)
 
     {
       accel[n_] = arma::vec(6, arma::fill::zeros);
@@ -79,6 +80,9 @@ private:
   int out_count =
       0; // systems with bodies that have multiple children require more
          // iterations in some loops to cover all frame transformations.
+
+  uint_fast8_t terminal_bodies = 0;
+  uint_fast8_t significant_bodies;
 
 public:
   // Methods
@@ -156,6 +160,7 @@ public:
   void compute_J_fractal(const int &k, forward_parameters &p,
                          const std::vector<std::vector<arma::mat::fixed<6, 6>>>
                              &spatial_operator_dt) const;
+  void count_terminals();
 };
 
 #endif // MYPROJECT_SYSTEM_OF_BODIES_H

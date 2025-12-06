@@ -181,6 +181,16 @@ void SystemOfBodies::set_parent(const int &idx, const int &parent,
   }
 }
 
+void SystemOfBodies::count_terminals() {
+  for (size_t i = 0; i < bodies.size(); i++) {
+
+    if (bodies[i]->children_ID[0] == 0 && bodies[i]->children_ID.size() == 1) {
+      terminal_bodies += 1;
+    }
+  }
+
+  significant_bodies = n - terminal_bodies;
+}
 //
 void SystemOfBodies::update_system_state() {
   std::cout << std::endl << "new body added" << std::endl;

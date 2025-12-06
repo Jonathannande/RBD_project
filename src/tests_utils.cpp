@@ -64,7 +64,7 @@ void test_n_body_system(const int n) {
 }
 
 void test_three_body_from_course() {
-  std::array<double, 3> array = {pi, -pi / 4, pi / 6};
+  std::array<double, 3> array = {pi / 4, -pi / 4, pi / 4};
   SystemOfBodies system;
   for (int i = 0; i < 3; ++i) {
     auto rec = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
@@ -172,13 +172,16 @@ void test_tree_dynamics() {
   system.set_parent(2, 4, true);
   system.set_parent(1, 3, true);
 
-  system.bodies[0]->children_ID[0] = 0;
   system.bodies[4]->set_outboard_position_vec_hinge_push(array_out_vec[1]);
   system.bodies[4]->set_outboard_position_vec_hinge_push(array_out_vec[2]);
   system.bodies[3]->set_outboard_position_vec_hinge_push(array_out_vec[0]);
   system.bodies[2]->set_outboard_position_vec_hinge_push(array_out_vec[0]);
   system.bodies[1]->set_outboard_position_vec_hinge_push(array_out_vec[0]);
   system.bodies[0]->set_outboard_position_vec_hinge_push(array_out_vec[0]);
+  system.bodies[0]->children_ID[0] = 0;
+  system.bodies[1]->children_ID[0] = 0;
+
+  system.count_terminals();
 
   system.set_stepper_type(false);
   system.solve_forward_dynamics_tree();

@@ -33,8 +33,11 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
   // already been done through the spatial operator, but now velocities
 
   for (int k = n - 1; k > -1; --k) {
+
     p.body_velocities[k] =
-        spatial_operator_dt[bodies[k]->parent_ID][get_child_index(k)].t() *
+        spatial_operator_dt[bodies[k]->parent_ID - terminal_bodies]
+                           [get_child_index(k)]
+                               .t() *
             p.body_velocities[bodies[k]->parent_ID - 1] +
         bodies[k]->transpose_hinge_map * p.theta_dot[k];
   }
@@ -63,9 +66,10 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
 
   for (int k = n - 1; k > -1; --k) {
 
-    p.accel_plus[k] =
-        spatial_operator_dt[bodies[k]->parent_ID][get_child_index(k)].t() *
-        p.accel[bodies[k]->parent_ID - 1];
+    p.accel_plus[k] = spatial_operator_dt[bodies[k]->parent_ID -
+                                          terminal_bodies][get_child_index(k)]
+                          .t() *
+                      p.accel[bodies[k]->parent_ID - 1];
     p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus[k];
     p.accel[k] = p.accel_plus[k] +
                  bodies[k]->transpose_hinge_map * p.theta_ddot[k] +
@@ -82,18 +86,6 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
 }
 
 void SystemOfBodies::solve_forward_dynamics_tree() {
-
-  // initialize needed spans once
-  if (!spans_initialized) {
-    span_k1_.reserve(n);
-    span_k2_.reserve(n);
-
-    for (int k = 0; k < n; ++k) {
-      span_k1_.emplace_back(6 * k, 6 * (k + 1) - 1);
-      span_k2_.emplace_back(6 * (k + 1), 6 * (k + 2) - 1);
-    }
-    spans_initialized = true;
-  }
 
   forward_parameters p(n, system_total_dof);
 
@@ -179,17 +171,18 @@ std::vector<std::vector<arma::vec6>>
 SystemOfBodies::find_spatial_operator_input_vector_tree(
     const std::vector<arma::vec> &state) const {
 
-  std::vector<std::vector<arma::vec6>> return_vector(n);
+  std::vector<std::vector<arma::vec6>> return_vector(n - terminal_bodies);
 
   // uses the modified theta
-  for (int i = 0; i < n; ++i) {
+  for (int i = terminal_bodies; i < n; ++i) {
     size_t num_out = bodies[i]->out_hinge_tree.size();
-    return_vector[i].resize(num_out);
+    return_vector[i - terminal_bodies].resize(num_out);
 
     arma::vec6 base =
         bodies[i]->hinge_map.t() * state[i] + bodies[i]->hinge_pos;
     for (int j = 0; j < num_out; ++j) {
-      return_vector[i][j] = base - bodies[i]->out_hinge_tree[j];
+      return_vector[i - terminal_bodies][j] =
+          base - bodies[i]->out_hinge_tree[j];
     }
   }
   return return_vector;
@@ -202,15 +195,18 @@ SystemOfBodies::find_spatial_operator_tree(
   std::vector<std::vector<arma::vec6>> rigid_body_transform_vector =
       find_spatial_operator_input_vector_tree(state);
   const arma::mat::fixed<6, 6> I = arma::eye(6, 6);
-  std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator(n + 2);
-  spatial_operator.resize(n + 2);
-  spatial_operator[0].resize(1);
-  spatial_operator[n + 1].resize(1);
-  spatial_operator[0][0] = I;
-  spatial_operator[n + 1][0] = I;
+  std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator(
+      n + 2 - terminal_bodies);
 
-  for (int i = 1; i < n + 1; ++i) {
-    const size_t num_out = bodies[i - 1]->out_hinge_tree.size();
+  spatial_operator.resize(n + 2 - terminal_bodies);
+  spatial_operator[0].resize(1);
+  spatial_operator[n + 1 - terminal_bodies].resize(1);
+  spatial_operator[0][0] = I;
+  spatial_operator[n + 1 - terminal_bodies][0] = I;
+
+  for (int i = 1; i < n + 1 - terminal_bodies; ++i) {
+    const size_t num_out =
+        bodies[i - 1 + terminal_bodies]->out_hinge_tree.size();
     spatial_operator[i].resize(num_out);
 
     for (int j = 0; j < num_out; ++j) {
@@ -255,15 +251,15 @@ void SystemOfBodies::compute_J_fractal(
   } else if (bodies[k]->children_ID.size() == 1) {
     p.J_fractal[k] =
         spatial_operator_dt[bodies[k]->children_ID[0]][0] *
-            p.J_fractal_plus[bodies[k]->children_ID[0] - 1] +
+            p.J_fractal_plus[bodies[k]->children_ID[0]] +
         p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
                                  p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   } else {
     p.J_fractal[k] = arma::zeros<arma::vec>(6);
     for (size_t i = 0; i < bodies[k]->children_ID.size(); ++i) {
-      p.J_fractal[k] += spatial_operator_dt[bodies[k]->children_ID[i]][0] *
-                        p.J_fractal_plus[bodies[k]->children_ID[i] - 1];
+      p.J_fractal[k] += spatial_operator_dt[bodies[k]->children_ID[1]][i] *
+                        p.J_fractal_plus[bodies[k]->children_ID[i]];
     }
     p.J_fractal[k] +=
         p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
@@ -281,15 +277,15 @@ void SystemOfBodies::compute_p(
     p.P[k] = bodies[k]->inertial_matrix;
   } else if (bodies[k]->children_ID.size() == 1) {
     p.P[k] = spatial_operator_dt[bodies[k]->children_ID[0]][0] *
-                 p.P_plus[bodies[k]->children_ID[0] - 1] *
+                 p.P_plus[bodies[k]->children_ID[0]] *
                  spatial_operator_dt[bodies[k]->children_ID[0]][0].t() +
              bodies[k]->inertial_matrix;
   } else {
     p.P[k] = arma::zeros<arma::mat>(6, 6);
     for (int i = 0; i < bodies[k]->children_ID.size(); ++i) {
-      p.P[k] += spatial_operator_dt[bodies[k]->children_ID[i]][0] *
-                p.P_plus[bodies[k]->children_ID[i] - 1] *
-                spatial_operator_dt[bodies[k]->children_ID[i]][0].t();
+      p.P[k] += spatial_operator_dt[bodies[k]->children_ID[1]][i] *
+                p.P_plus[bodies[k]->children_ID[i]] *
+                spatial_operator_dt[bodies[k]->children_ID[1]][i].t();
     }
     p.P[k] += bodies[k]->inertial_matrix;
   }
