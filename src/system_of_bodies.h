@@ -17,7 +17,7 @@ class SystemOfBodies {
 public:
   // Simulation attributes
   const double t0{0.0};
-  const double t{0.19};
+  const double t{4};
   const double dt{0.01};
   const float system_gravity{9.81};
   int n{0};
@@ -83,6 +83,7 @@ private:
 
   uint_fast8_t terminal_bodies = 0;
   uint_fast8_t significant_bodies;
+  uint_fast8_t unique_connections{0};
 
 public:
   // Methods
@@ -161,6 +162,8 @@ public:
                          const std::vector<std::vector<arma::mat::fixed<6, 6>>>
                              &spatial_operator_dt) const;
   void count_terminals();
+
+  void count_unique();
 };
 
 #endif // MYPROJECT_SYSTEM_OF_BODIES_H

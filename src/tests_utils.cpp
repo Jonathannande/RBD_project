@@ -181,7 +181,7 @@ void test_tree_dynamics() {
   system.bodies[0]->children_ID[0] = 0;
   system.bodies[1]->children_ID[0] = 0;
 
-  system.count_terminals();
+  system.count_unique();
 
   system.set_stepper_type(false);
   system.solve_forward_dynamics_tree();

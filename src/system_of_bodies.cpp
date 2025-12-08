@@ -181,6 +181,16 @@ void SystemOfBodies::set_parent(const int &idx, const int &parent,
   }
 }
 
+void SystemOfBodies::count_unique() {
+
+  for (size_t i = 0; i < bodies.size(); i++) {
+
+    if (bodies[i]->children_ID.size() > 1) {
+      unique_connections += 1;
+    }
+  }
+}
+
 void SystemOfBodies::count_terminals() {
   for (size_t i = 0; i < bodies.size(); i++) {
 
