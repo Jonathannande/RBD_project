@@ -24,6 +24,8 @@ void test_single_body() {
 
   system.create_body(std::move(rec_1));
   system.solve_forward_dynamics();
+
+  system.prep_system();
 }
 /*
 void test_single_body_multi_dof() {
@@ -61,6 +63,8 @@ void test_n_body_system(const int n) {
   }
   system.set_stepper_type(true);
   system.solve_forward_dynamics();
+
+  system.prep_system();
 }
 
 void test_three_body_from_course() {
@@ -96,6 +100,8 @@ void test_inverse_dynamics_three_body_from_course() {
                                         "-(pi^3)*sin(2*pi*t+(pi/2))"});
 
     system.create_body(std::move(rec));
+
+    system.prep_system();
   }
   // system.solve_inverse_dynamics();
 }
@@ -115,6 +121,8 @@ void test_dense() {
   }
   system.set_stepper_type(true);
   system.solve_forward_dynamics();
+
+  system.prep_system();
 }
 
 void test_three_body_from_course_with_viz() {
@@ -131,6 +139,8 @@ void test_three_body_from_course_with_viz() {
     system.create_body(std::move(rec));
   }
   system.set_stepper_type(false);
+
+  system.prep_system();
 }
 // Rotate a point around a pivot
 Vector2 RotatePointAroundPivot(Vector2 point, Vector2 pivot, float angle) {
@@ -181,9 +191,7 @@ void test_tree_dynamics() {
   system.bodies[0]->children_ID[0] = 0;
   system.bodies[1]->children_ID[0] = 0;
 
-  system.count_unique();
-
-  system.set_stepper_type(false);
+  system.set_stepper_type(true);
   system.solve_forward_dynamics_tree();
 }
 

@@ -2,8 +2,10 @@
 // Created by Jonathan on 10/31/2025.
 //
 
+#include "math_utils.h"
 #include "plotting_utils.h"
 #include "system_of_bodies.h"
+#include <armadillo>
 #include <boost/numeric/odeint/integrate/integrate_adaptive.hpp>
 #include <boost/numeric/odeint/integrate/integrate_const.hpp>
 #include <boost/numeric/odeint/stepper/controlled_runge_kutta.hpp>
@@ -163,20 +165,21 @@ void SystemOfBodies::solve_forward_dynamics_tree() {
   }
 }
 
-// Assuming the list is sorted from 1 through n
-std::vector<std::vector<arma::vec6>>
-SystemOfBodies::find_spatial_operator_input_vector_tree(
+// computes the transform vectors of each body. Stored in n+1 vector
+// v[n] stores transform from inertial to base body frame
+std::vector<std::vector<arma::mat66>>
+SystemOfBodies::find_spatial_operator_tree(
     const std::vector<arma::vec> &state) const {
 
-  std::vector<std::vector<arma::vec6>> return_vector(n + 1);
+  std::vector<std::vector<arma::mat66>> return_vector(n + 1);
 
   return_vector[n].resize(1);
 
   arma::vec6 base =
       bodies[n - 1]->hinge_map.t() * state[n - 1] + bodies[n - 1]->hinge_pos;
 
-  return_vector[n][0] = base - bodies[n - 1]->out_hinge_tree[0];
-
+  arma::vec6 b = base - bodies[n - 1]->out_hinge_tree[0];
+  return_vector[n][0] = rb_transform(b.rows(0, 2), b.rows(3, 5));
   // uses the modified theta
   for (size_t i = n - 1; i > 0; --i) {
 
@@ -192,38 +195,16 @@ SystemOfBodies::find_spatial_operator_input_vector_tree(
                             state[bodies[i]->children_ID[j] - 1] +
                         bodies[bodies[i]->children_ID[j] - 1]->hinge_pos;
 
+      arma::vec6 a =
+          base -
+          bodies[i]
+              ->out_hinge_tree[j]; // If you encounter and error look here!!
+
       return_vector[bodies[i]->body_ID - 1][j] =
-          base - bodies[i]->out_hinge_tree[0]; // hardcoded a little bit...
+          rb_transform(a.rows(0, 2), a.rows(3, 5));
     }
   }
   return return_vector;
-}
-
-std::vector<std::vector<arma::mat::fixed<6, 6>>>
-SystemOfBodies::find_spatial_operator_tree(
-    const std::vector<arma::vec> &state) const {
-
-  std::vector<std::vector<arma::vec6>> rigid_body_transform_vector =
-      find_spatial_operator_input_vector_tree(state);
-
-  std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator(
-      rigid_body_transform_vector.size());
-
-  for (int i = 0; i < rigid_body_transform_vector.size(); ++i) {
-    if (rigid_body_transform_vector[i].size() == 0) {
-      continue;
-    }
-    spatial_operator[i].resize(rigid_body_transform_vector[i].size());
-
-    for (int j = 0; j < rigid_body_transform_vector[i].size(); ++j) {
-      {
-        spatial_operator[i][j] =
-            rb_transform(rigid_body_transform_vector[i][j].rows(0, 2),
-                         rigid_body_transform_vector[i][j].rows(3, 5));
-      }
-    }
-  }
-  return spatial_operator;
 }
 
 // This method gets the index of a child's id as it is stored in the parent's
@@ -279,7 +260,7 @@ void SystemOfBodies::compute_p(
     const int &k, forward_parameters &p,
     const std::vector<std::vector<arma::mat::fixed<6, 6>>> &spatial_operator_dt)
     const {
-  // terminal bodies k_index should always be 0
+
   if (bodies[k]->children_ID[0] == 0) {
     p.P[k] = bodies[k]->inertial_matrix;
   } else if (bodies[k]->children_ID.size() == 1) {

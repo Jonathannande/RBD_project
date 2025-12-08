@@ -153,11 +153,7 @@ void SystemOfBodies::create_body(std::unique_ptr<Body> any_body) {
   system_dofs_distribution.insert(system_dofs_distribution.begin(),
                                   inserted_body->hinge_map.n_rows);
 
-  out_count += inserted_body->out_hinge_tree.size();
-
   system_total_dof += inserted_body->hinge_map.n_rows;
-
-  update_system_state();
 }
 // sets default id's to a chain uses mathmatical indexing (starts at 1 ends at
 // n)
@@ -167,6 +163,8 @@ void SystemOfBodies::prep_system() {
     bodies[i]->parent_ID = i + 2;
     bodies[i]->children_ID.push_back(i);
   }
+
+  update_system_state();
 }
 
 // sets a given bodies uses mathematical indexing (starts at 1 ends at n)
@@ -181,42 +179,23 @@ void SystemOfBodies::set_parent(const int &idx, const int &parent,
   }
 }
 
-void SystemOfBodies::count_unique() {
-
-  for (size_t i = 0; i < bodies.size(); i++) {
-
-    if (bodies[i]->children_ID.size() > 1) {
-      unique_connections += 1;
-    }
-  }
-}
-
-void SystemOfBodies::count_terminals() {
-  for (size_t i = 0; i < bodies.size(); i++) {
-
-    if (bodies[i]->children_ID[0] == 0 && bodies[i]->children_ID.size() == 1) {
-      terminal_bodies += 1;
-    }
-  }
-
-  significant_bodies = n - terminal_bodies;
-}
-//
 void SystemOfBodies::update_system_state() {
-  std::cout << std::endl << "new body added" << std::endl;
+
   std::vector<double> state(2 * system_total_dof, 0.0);
   int offset = 0;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < system_dofs_distribution[i]; ++j) {
 
       state[offset + j] = bodies[i]->state(j);
-      std::cout << offset + j << " is now set to " << bodies[i]->state(j)
-                << " for " << system_dofs_distribution[i] << std::endl;
+      std::cout << "State: " << offset + j
+                << " Position set to: " << bodies[i]->state(j)
+                << " for body: " << i + 1 << " and dof: " << j + 1 << std::endl;
       state[system_total_dof + offset + j] =
           bodies[i]->state(j + system_dofs_distribution[i]);
-      std::cout << system_total_dof + offset + j << " is now set to "
+      std::cout << "State: " << system_total_dof + offset + j
+                << " Velocity set to "
                 << bodies[i]->state(j + system_dofs_distribution[i])
-                << std::endl;
+                << " for body: " << i + 1 << " and dof: " << j + 1 << std::endl;
     }
     offset += system_dofs_distribution[i];
   }

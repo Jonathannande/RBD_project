@@ -17,29 +17,20 @@ class SystemOfBodies {
 public:
   // Simulation attributes
   const double t0{0.0};
-  const double t{4};
+  const double t{4.0};
   const double dt{0.01};
-  const float system_gravity{9.81};
-  int n{0};
-  int system_total_dof = {0};
+  const double system_gravity{9.81};
+  unsigned int n{0};
+  unsigned int system_total_dof = {0};
   bool has_dynamic_time_step{false};
 
   // System attributes
-  std::vector<int> system_dofs_distribution;
+  std::vector<unsigned int> system_dofs_distribution;
   std::vector<std::unique_ptr<Body>> bodies;
   ParsedData parsed_data;
+  std::vector<double> system_state;
 
 private:
-  std::vector<double> system_state;
-  arma::mat system_hinge;
-  arma::mat graph_matrix;
-  bool is_cannonical{false};
-
-  // Span attributes (might get changed)
-  std::vector<arma::span> span_k1_;
-  std::vector<arma::span> span_k2_;
-  bool spans_initialized{false};
-
   // Forward dynamic specific attributes
   struct forward_parameters {
     std::vector<arma::mat> P_plus;
@@ -56,7 +47,7 @@ private:
     arma::mat D;
     arma::vec eta;
     std::vector<double> dydt_out;
-    int hidden_index = 0; // body frame coordinate storage
+    int hidden_index = 0; // For body frame coordinate storage
     std::vector<arma::vec> theta;
     std::vector<arma::vec> theta_dot;
     std::vector<arma::vec> theta_ddot;
@@ -74,16 +65,6 @@ private:
       J_fractal_plus[0] = arma::vec(6, arma::fill::zeros);
     }
   };
-
-  // Tree-specific attributes
-
-  int out_count =
-      0; // systems with bodies that have multiple children require more
-         // iterations in some loops to cover all frame transformations.
-
-  uint_fast8_t terminal_bodies = 0;
-  uint_fast8_t significant_bodies;
-  uint_fast8_t unique_connections{0};
 
 public:
   // Methods
@@ -149,7 +130,7 @@ public:
   std::vector<std::vector<arma::mat::fixed<6, 6>>>
   find_spatial_operator_tree(const std::vector<arma::vec> &state) const;
 
-  std::vector<std::vector<arma::vec6>> find_spatial_operator_input_vector_tree(
+  std::vector<std::vector<arma::mat66>> find_spatial_operator_input_vector_tree(
       const std::vector<arma::vec> &state) const;
 
   int get_child_index(const int &k_index) const;
@@ -161,9 +142,6 @@ public:
   void compute_J_fractal(const int &k, forward_parameters &p,
                          const std::vector<std::vector<arma::mat::fixed<6, 6>>>
                              &spatial_operator_dt) const;
-  void count_terminals();
-
-  void count_unique();
 };
 
 #endif // MYPROJECT_SYSTEM_OF_BODIES_H
