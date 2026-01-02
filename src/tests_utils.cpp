@@ -5,6 +5,7 @@
 #include "tests_utils.h"
 #include "system_of_bodies.h"
 #include <boost/math/constants/constants.hpp>
+#include <chrono>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -48,11 +49,19 @@ void test_single_body_multi_dof() {
 */
 void test_n_body_system(const int n) {
   SystemOfBodies system;
-  std::array<double, 2> array = {pi / 4, -pi / 4};
+  std::array<double, 2> array = {pi / 2, -pi / 2};
   std::array<double, 2> array_2 = {1.0, 2.0};
-  for (int i = 0; i < n; ++i) {
-    auto rec =
-        std::make_unique<Rectangle_computed>(array[i % 2], 0.1, 0.2, 8.0);
+  auto rec = std::make_unique<Rectangle_computed>(2, 0.1, 0.2, 8.0);
+  arma::vec vec = {0, -rec->l / 2.0, 0};
+  rec->set_position_vec_hinge(vec);
+  rec->set_outboard_position_vec_hinge({0, rec->l / 2.0, 0});
+  rec->set_hinge_state({pi / 4, 0});
+  rec->compute_inertia_matrix();
+
+  system.create_body(std::move(rec));
+
+  for (int i = 1; i < n; ++i) {
+    auto rec = std::make_unique<Rectangle_computed>(2, 0.1, 0.2, 8.0);
     arma::vec vec = {0, -rec->l / 2.0, 0};
     rec->set_position_vec_hinge(vec);
     rec->set_outboard_position_vec_hinge({0, rec->l / 2.0, 0});
@@ -61,10 +70,10 @@ void test_n_body_system(const int n) {
 
     system.create_body(std::move(rec));
   }
-  system.set_stepper_type(true);
-  system.solve_forward_dynamics();
 
   system.prep_system();
+  system.set_stepper_type(true);
+  system.solve_forward_dynamics();
 }
 
 void test_three_body_from_course() {
@@ -156,8 +165,10 @@ Vector2 RotatePointAroundPivot(Vector2 point, Vector2 pivot, float angle) {
 
 void test_tree_dynamics() {
 
+  auto start = std::chrono::high_resolution_clock::now();
   std::array<double, 5> array_hinge_state = {pi / 6, -pi / 5, pi / 7, pi / 2,
                                              pi / 3};
+  array_hinge_state = {pi / 4, pi / 4, 0, pi / 4, pi / 2};
   auto rec = Rectangle_computed(2.0, 0.1, 0.2, 8.0);
 
   std::array<arma::vec, 5> array_out_vec = {{{0, rec.l / 2, 0},
@@ -193,7 +204,16 @@ void test_tree_dynamics() {
 
   system.set_stepper_type(true);
   system.solve_forward_dynamics_tree();
+
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+  std::cout << "Full program run time: " << duration.count()
+            << " microseconds\n";
 }
+
+// GRAPHICS NOT WORKING
 
 void test_raylib() {
 

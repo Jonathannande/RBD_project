@@ -142,11 +142,10 @@ void SystemOfBodies::set_stepper_type(const bool &is_dynamic) {
 
 // method run on body insertion into a given system
 void SystemOfBodies::create_body(std::unique_ptr<Body> any_body) {
-  // Move the unique_ptr into the container and get a pointer to the inserted
-  // object
+
   const auto it =
       bodies.insert(bodies.begin(), std::move(any_body)); // Move ownership
-  const Body *inserted_body = it->get(); // Retrieve the raw pointer
+  const Body *inserted_body = it->get();
 
   ++n;
 
@@ -200,4 +199,25 @@ void SystemOfBodies::update_system_state() {
     offset += system_dofs_distribution[i];
   }
   system_state = state;
+}
+
+arma::mat SystemOfBodies::c_hinge(const arma::mat &hinge_map,
+                                  const int &body_ID) {
+
+  return arma::vec(6, arma::fill::zeros);
+}
+
+arma::vec::fixed<6>
+SystemOfBodies::gyroscopic_system(const int &k,
+                                  const forward_parameters &p) const {}
+arma::vec::fixed<6>
+SystemOfBodies::coriolis_system(const int &k,
+                                const forward_parameters &p) const {
+
+  if (bodies[k]->is_dependent_hinge_map == false) {
+
+    return coriolis_vector(bodies[k]->hinge_map, p.body_velocities[k],
+                           p.theta_dot[k]);
+  } else if (bodies[k]->is_dependent_hinge_map == true) {
+  }
 }

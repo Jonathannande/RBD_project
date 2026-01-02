@@ -27,7 +27,7 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
 
   // Sets system gravity, currently hard-coded should ideally be more general.
   p.accel[n](4) = system_gravity;
-
+  // p.accel[n](2) = sin(t);  // add swinging to the base body
   const std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator_dt =
       find_spatial_operator_tree(p.theta);
 
@@ -150,7 +150,7 @@ void SystemOfBodies::solve_forward_dynamics_tree() {
   auto duration =
       std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-  std::cout << "Time: " << duration.count() << " microseconds\n";
+  std::cout << "Solving time: " << duration.count() << " microseconds\n";
   // format generalized results
   ParsedData formatted_results = parseResults(results);
 
@@ -197,8 +197,7 @@ SystemOfBodies::find_spatial_operator_tree(
 
       arma::vec6 a =
           base -
-          bodies[i]
-              ->out_hinge_tree[j]; // If you encounter and error look here!!
+          bodies[i]->out_hinge_tree[j]; // If you encounter an error look here!!
 
       return_vector[bodies[i]->body_ID - 1][j] =
           rb_transform(a.rows(0, 2), a.rows(3, 5));
@@ -223,8 +222,30 @@ int SystemOfBodies::get_child_index(const int &k_index) const {
   return i;
 }
 
-// int SystemOfBodies::get_each_child(const int& k_index,)
+// When having multiple children, it is necessary to sum the influences of each
+// child on a body. This is done in the else statement
+void SystemOfBodies::compute_p(
+    const int &k, forward_parameters &p,
+    const std::vector<std::vector<arma::mat::fixed<6, 6>>> &spatial_operator_dt)
+    const {
 
+  if (bodies[k]->children_ID[0] == 0) {
+    p.P[k] = bodies[k]->inertial_matrix;
+  } else if (bodies[k]->children_ID.size() == 1) {
+    p.P[k] = spatial_operator_dt[k][0] * p.P_plus[bodies[k]->children_ID[0]] *
+                 spatial_operator_dt[k][0].t() +
+             bodies[k]->inertial_matrix;
+  } else {
+    p.P[k] = {arma::zeros<arma::mat>(6, 6)};
+    for (int i = 0; i < bodies[k]->children_ID.size(); ++i) {
+      p.P[k] += spatial_operator_dt[k][i] *
+                p.P_plus[bodies[k]->children_ID[i]] *
+                spatial_operator_dt[k][i].t();
+    }
+    p.P[k] += bodies[k]->inertial_matrix;
+  }
+}
+// Same case as compute_p
 void SystemOfBodies::compute_J_fractal(
     const int &k, forward_parameters &p,
     const std::vector<std::vector<arma::mat::fixed<6, 6>>> &spatial_operator_dt)
@@ -253,27 +274,5 @@ void SystemOfBodies::compute_J_fractal(
         p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
                                  p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
-  }
-}
-
-void SystemOfBodies::compute_p(
-    const int &k, forward_parameters &p,
-    const std::vector<std::vector<arma::mat::fixed<6, 6>>> &spatial_operator_dt)
-    const {
-
-  if (bodies[k]->children_ID[0] == 0) {
-    p.P[k] = bodies[k]->inertial_matrix;
-  } else if (bodies[k]->children_ID.size() == 1) {
-    p.P[k] = spatial_operator_dt[k][0] * p.P_plus[bodies[k]->children_ID[0]] *
-                 spatial_operator_dt[k][0].t() +
-             bodies[k]->inertial_matrix;
-  } else {
-    p.P[k] = arma::zeros<arma::mat>(6, 6);
-    for (int i = 0; i < bodies[k]->children_ID.size(); ++i) {
-      p.P[k] += spatial_operator_dt[k][i] *
-                p.P_plus[bodies[k]->children_ID[i]] *
-                spatial_operator_dt[k][i].t();
-    }
-    p.P[k] += bodies[k]->inertial_matrix;
   }
 }

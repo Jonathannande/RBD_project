@@ -17,8 +17,8 @@ class SystemOfBodies {
 public:
   // Simulation attributes
   const double t0{0.0};
-  const double t{4.0};
-  const double dt{0.01};
+  const double t{40.0};
+  const double dt{0.0008};
   const double system_gravity{9.81};
   unsigned int n{0};
   unsigned int system_total_dof = {0};
@@ -142,6 +142,13 @@ public:
   void compute_J_fractal(const int &k, forward_parameters &p,
                          const std::vector<std::vector<arma::mat::fixed<6, 6>>>
                              &spatial_operator_dt) const;
+
+  arma::mat c_hinge(const arma::mat &hinge_map, const int &body_ID);
+
+  arma::vec::fixed<6> gyroscopic_system(const int &k,
+                                        const forward_parameters &p) const;
+  arma::vec::fixed<6> coriolis_system(const int &k,
+                                      const forward_parameters &p) const;
 };
 
 #endif // MYPROJECT_SYSTEM_OF_BODIES_H

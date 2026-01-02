@@ -15,8 +15,8 @@ public:
   bool is_dependent_hinge_map; // is used for 2 DOF hinge
 
   // own hinge position, vector position(s) of children
-  arma::vec::fixed<6> hinge_pos; // 6X1 position vector used for inertia
-                                 // computations - not used in BWA
+  arma::vec::fixed<6> hinge_pos;     // 6X1 position vector used for inertia
+                                     // computations - not used in BWA
   arma::vec::fixed<6> out_hinge_pos; // 6X1 position vector used for transform
                                      // from center of mass
 
@@ -36,11 +36,11 @@ public:
   std::vector<std::string>
       inverse_dynamics_funcs; // saved in pairs of 3, for each dof of the body
                               // from left to right.
-  const double m; // mass
+  const double m;             // mass
 
   Body(double mass);
 
-  virtual void compute_inertia_matrix() = 0; // Pure virtual
+  virtual void compute_inertia_matrix() = 0; // pure virtual
 
   // Setting methods
   void set_position_vec_hinge(const arma::vec &input_vec);

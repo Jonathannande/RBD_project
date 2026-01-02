@@ -90,9 +90,9 @@ void SystemOfBodies::solve_forward_dynamics() {
   results.reserve((system_total_dof + 1) * t / dt + 50);
 
   // body frame storage
-  arma::mat store_velocities = arma::zeros(n * 6, t / dt + 1);
-  arma::mat store_accelerations = arma::zeros(n * 6, t / dt + 1);
-  arma::mat store_forces = arma::zeros(n * 6, t / dt + 1);
+  // arma::mat store_velocities = arma::zeros(n * 6, t / dt + 1);
+  // arma::mat store_accelerations = arma::zeros(n * 6, t / dt + 1);
+  // arma::mat store_forces = arma::zeros(n * 6, t / dt + 1);
 
   // Observer lambda
   auto obs = [&](const std::vector<double> &y, double t) {
@@ -146,19 +146,18 @@ void SystemOfBodies::solve_forward_dynamics() {
     auto duration =
         std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    std::cout << "Time: " << duration.count() << " microseconds\n";
+    std::cout << "Solve time: " << duration.count() << " microseconds\n";
   }
   // format generalized results
   ParsedData formatted_results = parseResults(results);
-  parsed_data = formatted_results;
 
   // plot generalized results
   plot_thetas(formatted_results, system_total_dof);
 
   // plot body frame results if system is small
   if (n < 5) {
-    plot_data(store_accelerations, formatted_results, n, "accelerations");
-    plot_data(store_velocities, formatted_results, n, "velocities");
-    plot_data(store_forces, formatted_results, n, "forces");
+    // plot_data(store_accelerations, formatted_results, n, "accelerations");
+    // plot_data(store_velocities, formatted_results, n, "velocities");
+    // plot_data(store_forces, formatted_results, n, "forces");
   }
 }
