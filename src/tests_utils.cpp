@@ -24,29 +24,29 @@ void test_single_body() {
   SystemOfBodies system;
 
   system.create_body(std::move(rec_1));
-  system.solve_forward_dynamics();
-
   system.prep_system();
+  system.solve_forward_dynamics();
 }
-/*
+
 void test_single_body_multi_dof() {
 
-    auto rec_1 = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
-    arma::vec vec=  {0, -rec_1->l/2.0, 0};
-    rec_1->set_position_vec_hinge(vec);
-    rec_1->set_outboard_position_vec_hinge({0, rec_1->l/2.0, 0});
-    arma::mat xx = {{1,0,0,0,0,0},{0,0,1,0,0,0},{0,1,0,0,0,0}};
-    rec_1->set_hinge_map(xx);
-    rec_1->set_hinge_state({pi/2,0,pi/2,0,0,0});
-    rec_1->compute_inertia_matrix();
+  auto rec_1 = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
+  arma::vec vec = {0, -rec_1->l / 2.0, 0};
+  rec_1->set_position_vec_hinge(vec);
+  rec_1->set_hinge_map("universal");
+  rec_1->set_hinge_state({pi / 2, pi / 2, 0, 0});
+  rec_1->compute_inertia_matrix();
 
-    SystemOfBodies system;
+  SystemOfBodies system;
 
-    system.create_body(std::move(rec_1));
-    system.set_stepper_type(true);
-    system.solve_forward_dynamics();
+  system.create_body(std::move(rec_1));
+
+  system.bodies[0]->set_outboard_position_vec_hinge_push(vec);
+  system.prep_system();
+  system.set_stepper_type(false);
+  system.solve_forward_dynamics_tree();
 }
-*/
+
 void test_n_body_system(const int n) {
   SystemOfBodies system;
   std::array<double, 2> array = {pi / 2, -pi / 2};

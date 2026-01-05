@@ -8,9 +8,6 @@
 
 // Body class implementations
 Body::Body(double mass) : m(mass) {
-  hinge_map = {0, 0, 1,
-               0, 0, 0}; // default 1 dof hingemap - changed with set_hinge_map
-  transpose_hinge_map = hinge_map.t(); // transpose of hinge_map
   state = {0, 0}; // state of position then velocity respectively
   bool is_dependent_hingemap = false; // used for hinge maps with dependence on
                                       // a variable - not currently implemented
@@ -32,10 +29,45 @@ void Body::set_outboard_position_vec_hinge_push(const arma::vec &input_vec) {
   out_hinge_tree.push_back(join_vert(arma::zeros(3, 1), input_vec));
 }
 
-void Body::set_hinge_map(const arma::mat &hinge_map_input) {
-  hinge_map = hinge_map_input;
-  transpose_hinge_map = hinge_map.t();
-  state = arma::zeros(2 * hinge_map_input.n_cols);
+void Body::set_hinge_map(const std::string &type,
+                         const std::vector<double> &params) {
+
+  if (type == "rotational") {
+    hinge_map = {0, 0, 1, 0, 0, 0};
+    is_dependent_hinge_map = false;
+  } else if (type == "prismatic") {
+    hinge_map = arma::mat{0, 0, 0, 0, 1, 0};
+    is_dependent_hinge_map = false;
+  } else if (type == "cylindrical") {
+    hinge_map = {{0, 0}, {1, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 1}};
+    is_dependent_hinge_map = false;
+  } else if (type == "helical") {
+    double pitch = params.size() > 0 ? params[0] : 1.0;
+    hinge_map = arma::mat({0, 1, 0, 0, pitch, 0});
+  } else if (type == "universal") {
+
+    is_dependent_hinge_map = true;
+    hinge_map = arma::zeros(2, 6);
+    compute_hinge_map = [params](const arma::mat &theta) {
+      arma::mat h = arma::zeros(2, 6);
+      h(0, 0) = 1;
+      h(1, 1) = cos(theta(0));
+      h(1, 2) = sin(theta(0));
+      return h;
+    };
+  }
+  if (!is_dependent_hinge_map) {
+    transpose_hinge_map = hinge_map.t();
+  }
+}
+
+arma::mat Body::get_hinge_map(const arma::vec &theta) const {
+  return is_dependent_hinge_map ? compute_hinge_map(theta) : hinge_map;
+}
+
+arma::mat Body::get_transposed_hinge_map(const arma::vec &theta) const {
+  return is_dependent_hinge_map ? compute_hinge_map(theta).t()
+                                : transpose_hinge_map;
 }
 
 void Body::set_hinge_state(const arma::vec &hinge_state_input) {

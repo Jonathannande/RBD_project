@@ -16,13 +16,13 @@
 class SystemOfBodies {
 public:
   // Simulation attributes
-  const double t0{0.0};
-  const double t{40.0};
-  const double dt{0.0008};
-  const double system_gravity{9.81};
-  unsigned int n{0};
-  unsigned int system_total_dof = {0};
-  bool has_dynamic_time_step{false};
+  const double t0{0.0};                // start time
+  const double t{4.0};                 // end time
+  const double dt{0.0008};             // time step
+  const double system_gravity{9.81};   // gravity
+  unsigned int n{0};                   // number of bodies
+  unsigned int system_total_dof = {0}; // number of total dofs in system
+  bool has_dynamic_time_step{false};   // sets stepper dynamic
 
   // System attributes
   std::vector<unsigned int> system_dofs_distribution;
@@ -42,7 +42,7 @@ private:
     std::vector<arma::vec> accel_plus;
     std::vector<arma::vec> body_velocities;
     std::vector<arma::vec> body_forces;
-    std::vector<arma::vec> G_fractal;
+    std::vector<arma::mat> G_fractal;
     std::vector<arma::mat> frac_v;
     arma::mat D;
     arma::vec eta;

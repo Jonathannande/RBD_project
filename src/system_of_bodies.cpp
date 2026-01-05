@@ -163,6 +163,12 @@ void SystemOfBodies::prep_system() {
     bodies[i]->children_ID.push_back(i);
   }
 
+  system_total_dof = 0;
+  for (size_t i = 0; i < n; i++) {
+    system_dofs_distribution[i] = bodies[i]->hinge_map.n_rows;
+    system_total_dof += bodies[i]->hinge_map.n_rows;
+  }
+
   update_system_state();
 }
 

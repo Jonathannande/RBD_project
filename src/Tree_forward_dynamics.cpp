@@ -39,25 +39,27 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
     p.body_velocities[k] =
         spatial_operator_dt[bodies[k]->parent_ID - 1][get_child_index(k)].t() *
             p.body_velocities[bodies[k]->parent_ID - 1] +
-        bodies[k]->transpose_hinge_map * p.theta_dot[k];
+        bodies[k]->get_transposed_hinge_map(p.theta[k]) * p.theta_dot[k];
   }
 
   for (int k = 0; k < n; ++k) {
 
     compute_p(k, p, spatial_operator_dt);
 
-    p.D = bodies[k]->hinge_map * p.P[k] * bodies[k]->transpose_hinge_map;
+    p.D = bodies[k]->get_hinge_map(p.theta[k]) * p.P[k] *
+          bodies[k]->get_transposed_hinge_map(p.theta[k]);
 
-    p.G_fractal[k] =
-        p.P[k] * bodies[k]->transpose_hinge_map * arma::inv(trimatu(p.D));
+    p.G_fractal[k] = p.P[k] * bodies[k]->get_transposed_hinge_map(p.theta[k]) *
+                     arma::inv(trimatu(p.D));
 
-    p.tau_bar[k] = arma::eye(6, 6) - p.G_fractal[k] * bodies[k]->hinge_map;
+    p.tau_bar[k] =
+        arma::eye(6, 6) - p.G_fractal[k] * bodies[k]->get_hinge_map(p.theta[k]);
 
     p.P_plus[k + 1] = p.tau_bar[k] * p.P[k];
 
     compute_J_fractal(k, p, spatial_operator_dt);
 
-    p.eta = -bodies[k]->hinge_map * p.J_fractal[k];
+    p.eta = -bodies[k]->get_hinge_map(p.theta[k]) * p.J_fractal[k];
 
     p.frac_v[k] = arma::solve(trimatu(p.D), p.eta);
 
@@ -70,10 +72,11 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
         spatial_operator_dt[bodies[k]->parent_ID - 1][get_child_index(k)].t() *
         p.accel[bodies[k]->parent_ID - 1];
     p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus[k];
-    p.accel[k] = p.accel_plus[k] +
-                 bodies[k]->transpose_hinge_map * p.theta_ddot[k] +
-                 coriolis_vector(bodies[k]->transpose_hinge_map,
-                                 p.body_velocities[k], p.theta_dot[k]);
+    p.accel[k] =
+        p.accel_plus[k] +
+        bodies[k]->get_transposed_hinge_map(p.theta[k]) * p.theta_ddot[k] +
+        coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
+                        p.body_velocities[k], p.theta_dot[k]);
   }
 
   for (int k = 0; k < n; ++k) {
@@ -176,7 +179,8 @@ SystemOfBodies::find_spatial_operator_tree(
   return_vector[n].resize(1);
 
   arma::vec6 base =
-      bodies[n - 1]->hinge_map.t() * state[n - 1] + bodies[n - 1]->hinge_pos;
+      bodies[n - 1]->get_transposed_hinge_map(state[n - 1]) * state[n - 1] +
+      bodies[n - 1]->hinge_pos;
 
   arma::vec6 b = base - bodies[n - 1]->out_hinge_tree[0];
   return_vector[n][0] = rb_transform(b.rows(0, 2), b.rows(3, 5));
@@ -191,9 +195,11 @@ SystemOfBodies::find_spatial_operator_tree(
 
     for (int j = 0; j < bodies[i]->children_ID.size(); ++j) {
 
-      arma::vec6 base = bodies[bodies[i]->children_ID[j] - 1]->hinge_map.t() *
-                            state[bodies[i]->children_ID[j] - 1] +
-                        bodies[bodies[i]->children_ID[j] - 1]->hinge_pos;
+      arma::vec6 base =
+          bodies[bodies[i]->children_ID[j] - 1]->get_transposed_hinge_map(
+              state[bodies[i]->children_ID[j] - 1]) *
+              state[bodies[i]->children_ID[j] - 1] +
+          bodies[bodies[i]->children_ID[j] - 1]->hinge_pos;
 
       arma::vec6 a =
           base -
@@ -252,16 +258,18 @@ void SystemOfBodies::compute_J_fractal(
     const {
   if (bodies[k]->children_ID[0] == 0) {
     p.J_fractal[k] =
-        p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
-                                 p.body_velocities[k], p.theta_dot[k]) +
+        p.P[k] *
+            coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
+                            p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
 
   } else if (bodies[k]->children_ID.size() == 1) {
     p.J_fractal[k] =
         spatial_operator_dt[k][0] *
             p.J_fractal_plus[bodies[k]->children_ID[0]] +
-        p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
-                                 p.body_velocities[k], p.theta_dot[k]) +
+        p.P[k] *
+            coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
+                            p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   } else {
 
@@ -271,8 +279,9 @@ void SystemOfBodies::compute_J_fractal(
                         p.J_fractal_plus[bodies[k]->children_ID[i]];
     }
     p.J_fractal[k] +=
-        p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
-                                 p.body_velocities[k], p.theta_dot[k]) +
+        p.P[k] *
+            coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
+                            p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   }
 }
