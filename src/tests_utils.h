@@ -11,7 +11,7 @@ void test_n_body_system(int n);
 
 void test_three_body_from_course();
 
-void test_single_body_multi_dof();
+void test_universal_hinge();
 
 void test_inverse_dynamics_three_body_from_course();
 
@@ -22,4 +22,6 @@ void test_three_body_from_course_with_viz();
 void test_raylib();
 
 void test_tree_dynamics();
-#endif //MYPROJECT_TESTS_UTILS_H
+
+void test_spherical_hinge();
+#endif // MYPROJECT_TESTS_UTILS_H

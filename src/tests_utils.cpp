@@ -28,7 +28,26 @@ void test_single_body() {
   system.solve_forward_dynamics();
 }
 
-void test_single_body_multi_dof() {
+void test_spherical_hinge() {
+
+  auto rec_1 = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
+  arma::vec vec = {0, -rec_1->l / 2.0, 0};
+  rec_1->set_position_vec_hinge(vec);
+  rec_1->set_hinge_map("spherical");
+  rec_1->set_hinge_state({pi / 2, pi / 2, pi / 2, 0, 0, 0});
+  rec_1->compute_inertia_matrix();
+
+  SystemOfBodies system;
+
+  system.create_body(std::move(rec_1));
+
+  system.bodies[0]->set_outboard_position_vec_hinge_push(vec);
+  system.prep_system();
+  system.set_stepper_type(true);
+  system.solve_forward_dynamics_tree();
+}
+
+void test_universal_hinge() {
 
   auto rec_1 = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
   arma::vec vec = {0, -rec_1->l / 2.0, 0};
@@ -43,7 +62,7 @@ void test_single_body_multi_dof() {
 
   system.bodies[0]->set_outboard_position_vec_hinge_push(vec);
   system.prep_system();
-  system.set_stepper_type(false);
+  system.set_stepper_type(true);
   system.solve_forward_dynamics_tree();
 }
 

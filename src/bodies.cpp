@@ -10,7 +10,6 @@
 Body::Body(double mass) : m(mass) {
   state = {0, 0}; // state of position then velocity respectively
   bool is_dependent_hingemap = false; // used for hinge maps with dependence on
-                                      // a variable - not currently implemented
 }
 
 // Setting methods
@@ -39,16 +38,26 @@ void Body::set_hinge_map(const std::string &type,
     hinge_map = arma::mat{0, 0, 0, 0, 1, 0};
     is_dependent_hinge_map = false;
   } else if (type == "cylindrical") {
-    hinge_map = {{0, 0}, {1, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 1}};
+    hinge_map = arma::zeros(2, 6);
+    hinge_map(0, 2) = 1;
+    hinge_map(1, 5) = 1;
     is_dependent_hinge_map = false;
   } else if (type == "helical") {
     double pitch = params.size() > 0 ? params[0] : 1.0;
-    hinge_map = arma::mat({0, 1, 0, 0, pitch, 0});
+    hinge_map = arma::mat{0, 1, 0, 0, pitch, 0};
+  } else if (type == "spherical") {
+    hinge_map = arma::zeros(3, 6);
+    hinge_map(0, 0) = 1;
+    hinge_map(1, 1) = 1;
+    hinge_map(2, 2) = 1;
+    is_dependent_hinge_map = false;
   } else if (type == "universal") {
 
     is_dependent_hinge_map = true;
+    // Dummy hinge map for dof computations of the system
     hinge_map = arma::zeros(2, 6);
-    compute_hinge_map = [params](const arma::mat &theta) {
+
+    compute_hinge_map = [params](const arma::vec &theta) {
       arma::mat h = arma::zeros(2, 6);
       h(0, 0) = 1;
       h(1, 1) = cos(theta(0));
