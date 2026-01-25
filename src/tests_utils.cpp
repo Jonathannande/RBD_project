@@ -53,7 +53,7 @@ void test_universal_hinge() {
   arma::vec vec = {0, -rec_1->l / 2.0, 0};
   rec_1->set_position_vec_hinge(vec);
   rec_1->set_hinge_map("universal");
-  rec_1->set_hinge_state({pi / 2, pi / 2, 0, 0});
+  rec_1->set_hinge_state({pi / 6, -pi / 6, 0, 0});
   rec_1->compute_inertia_matrix();
 
   SystemOfBodies system;
@@ -62,7 +62,7 @@ void test_universal_hinge() {
 
   system.bodies[0]->set_outboard_position_vec_hinge_push(vec);
   system.prep_system();
-  system.set_stepper_type(true);
+  system.set_stepper_type(false);
   system.solve_forward_dynamics_tree();
 }
 
@@ -199,7 +199,9 @@ void test_tree_dynamics() {
   SystemOfBodies system;
   for (int i = 0; i < 5; ++i) {
     auto rec = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
+
     arma::vec vec = {0, -rec->l / 2.0, 0};
+
     rec->set_position_vec_hinge(vec);
     rec->set_hinge_state({array_hinge_state[i], 0});
     rec->compute_inertia_matrix();
@@ -324,4 +326,149 @@ void test_raylib() {
   }
 
   CloseWindow();
+}
+
+void test_rayy() {
+  InitWindow(800, 600, "Draggable Pendulum");
+  SetTargetFPS(60);
+
+  Camera3D camera = {{0, 0, 12}, {0, 0, 0}, {0, 1, 0}, 45, CAMERA_PERSPECTIVE};
+
+  float length = 3.0f;
+  Vector3 pivot = {0, 2, 0};
+
+  // Pendulum state
+  float theta = 0.5f;
+  float omega = 0.0f; // angular velocity
+
+  // Physics
+  float gravity = 9.8f;
+  float damping = 0.5f;
+
+  // Dragging
+  bool dragging = false;
+
+  while (!WindowShouldClose()) {
+    float dt = GetFrameTime();
+
+    // Compute pendulum end position
+    Vector3 end = {pivot.x + length * sinf(theta),
+                   pivot.y - length * cosf(theta), 0};
+
+    // Mouse ray
+    Ray ray = GetScreenToWorldRay(GetMousePosition(), camera);
+
+    // Project mouse onto z=0 plane
+    float t = -ray.position.z / ray.direction.z;
+    Vector3 mouseWorld = {ray.position.x + ray.direction.x * t,
+                          ray.position.y + ray.direction.y * t, 0};
+
+    // Check if clicking near the end
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+      float dist = Vector3Distance(mouseWorld, end);
+      if (dist < 0.5f) {
+        dragging = true;
+      }
+    }
+    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+      dragging = false;
+    }
+
+    // Physics update
+    if (dragging) {
+      // Compute angle to mouse position
+      float dx = mouseWorld.x - pivot.x;
+      float dy = mouseWorld.y - pivot.y;
+      float targetTheta = atan2f(dx, -dy);
+
+      // Spring toward mouse
+      float springK = 50.0f;
+      float torque = springK * (targetTheta - theta);
+      omega += torque * dt;
+      omega *= 0.9f; // extra damping while dragging
+    } else {
+      // Gravity torque: -g/L * sin(theta)
+      float alpha = -(gravity / length) * sinf(theta);
+      omega += alpha * dt;
+      omega -= damping * omega * dt;
+    }
+
+    theta += omega * dt;
+
+    BeginDrawing();
+    ClearBackground(RAYWHITE);
+    BeginMode3D(camera);
+
+    DrawSphere(pivot, 0.05f, DARKGRAY);
+    DrawCylinderEx(pivot, end, 0.08f, 0.08f, 8, dragging ? BLUE : RED);
+    DrawSphere(end, dragging ? 0.25f : 0.15f, dragging ? BLUE : MAROON);
+    DrawGrid(10, 1.0f);
+
+    // Draw mouse target while dragging
+    if (dragging) {
+      DrawSphere(mouseWorld, 0.1f, GREEN);
+    }
+
+    EndMode3D();
+
+    DrawText("Click and drag the pendulum end", 10, 10, 20, GRAY);
+
+    EndDrawing();
+  }
+
+  CloseWindow();
+}
+
+void test_chain_dynamics() {
+  auto start = std::chrono::high_resolution_clock::now();
+
+  const int num_bodies = 10;
+  auto rec = Rectangle_computed(2.0, 0.1, 0.2, 8.0);
+
+  SystemOfBodies system;
+
+  // Create bodies with varying initial angles
+  for (int i = 0; i < num_bodies; ++i) {
+    auto body = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
+    if (i > 5) {
+
+      auto body = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 80.0);
+    }
+    arma::vec vec = {0, -body->l / 2.0, 0};
+    body->set_position_vec_hinge(vec);
+
+    // Varying initial angles
+    double init_angle = pi / 6.0 + (i * pi / 20.0);
+    body->set_hinge_state({init_angle, 0});
+    body->compute_inertia_matrix();
+    system.create_body(std::move(body));
+  }
+
+  system.prep_system();
+
+  // Chain structure: each body is parent of the next
+  // Body 10 (index 9) is root
+  // Body 9 is child of 10
+  // Body 8 is child of 9
+  // etc.
+  for (int i = num_bodies - 2; i >= 0; i--) {
+    system.set_parent(i + 1, i + 2, true);
+  }
+
+  // Set outboard vectors
+  arma::vec out_vec = {0, rec.l / 2, 0};
+  for (int i = 0; i < num_bodies; i++) {
+    system.bodies[i]->set_outboard_position_vec_hinge_push(out_vec);
+  }
+
+  system.bodies[0]->children_ID[0] = 0;
+
+  system.set_stepper_type(true);
+  system.solve_forward_dynamics_tree();
+
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  std::cout << "Full program run time: " << duration.count()
+            << " microseconds\n";
 }

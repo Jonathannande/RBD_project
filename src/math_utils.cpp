@@ -131,16 +131,3 @@ arma::vec::fixed<6> gyroscopic_force_z(const arma::mat &inertial_matrix,
   const arma::mat velocity_bar = bar_velocity(velocity_vector);
   return velocity_bar * inertial_matrix * velocity_vector;
 }
-
-// coriolis term for body frame, eq. 5.11 - without the differential hinge map
-// part
-arma::vec::fixed<6> coriolis_vector(const arma::mat &hinge_map,
-                                    const arma::mat &velocity_vector,
-                                    const arma::vec &generalized_velocities) {
-  const arma::mat tilde_velocity_result = tilde_velocity(velocity_vector);
-  const arma::mat delta_velocity = hinge_map * generalized_velocities;
-  const arma::mat delta_velocity_bar = bar_velocity(delta_velocity);
-
-  return tilde_velocity_result * delta_velocity -
-         delta_velocity_bar * delta_velocity;
-}

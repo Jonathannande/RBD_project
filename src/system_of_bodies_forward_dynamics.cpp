@@ -52,8 +52,8 @@ void SystemOfBodies::system_of_equations_forward_dynamics(
 
     p.J_fractal[k] =
         spatial_operator_dt[k] * p.J_fractal_plus[k] +
-        p.P[k] * coriolis_vector(bodies[k]->transpose_hinge_map,
-                                 p.body_velocities[k], p.theta_dot[k]) +
+        p.P[k] * bodies[k]->get_coriolis_vector(
+                     p.theta[k], p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
 
     p.eta = -bodies[k]->hinge_map * p.J_fractal[k];
@@ -67,10 +67,10 @@ void SystemOfBodies::system_of_equations_forward_dynamics(
 
     p.accel_plus[k] = spatial_operator_dt[k + 1].t() * p.accel[k + 1];
     p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus[k];
-    p.accel[k] = p.accel_plus[k] +
-                 bodies[k]->transpose_hinge_map * p.theta_ddot[k] +
-                 coriolis_vector(bodies[k]->transpose_hinge_map,
-                                 p.body_velocities[k], p.theta_dot[k]);
+    p.accel[k] =
+        p.accel_plus[k] + bodies[k]->transpose_hinge_map * p.theta_ddot[k] +
+        bodies[k]->get_coriolis_vector(p.theta[k], p.body_velocities[k],
+                                       p.theta_dot[k]);
   }
 
   for (int k = 0; k < n; ++k) {

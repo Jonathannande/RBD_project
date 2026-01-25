@@ -42,6 +42,9 @@ public:
 
   virtual void compute_inertia_matrix() = 0; // pure virtual
   std::function<arma::mat(const arma::vec &)> compute_hinge_map;
+  std::function<arma::vec::fixed<6>(const arma::vec &theta,
+                                    const arma::vec &theta_dot)>
+      gradient_term;
   // Setting methods
   void set_position_vec_hinge(const arma::vec &input_vec);
   void set_outboard_position_vec_hinge(const arma::vec &input_vec);
@@ -57,6 +60,14 @@ public:
   // gettting methods
   arma::mat get_hinge_map(const arma::vec &theta) const;
   arma::mat get_transposed_hinge_map(const arma::vec &theta) const;
+  arma::vec::fixed<6>
+  get_coriolis_vector(const arma::vec &generalized_positions,
+                      const arma::mat &velocity_vector,
+                      const arma::vec &generalized_velocities);
+
+  arma::vec::fixed<6> coriolis_vector(const arma::vec &generalized_positions,
+                                      const arma::mat &velocity_vector,
+                                      const arma::vec &generalized_velocities);
 };
 
 class Rectangle_computed : public Body {

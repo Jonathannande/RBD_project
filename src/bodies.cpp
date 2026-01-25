@@ -27,7 +27,7 @@ void Body::set_outboard_position_vec_hinge(const arma::vec &input_vec) {
 void Body::set_outboard_position_vec_hinge_push(const arma::vec &input_vec) {
   out_hinge_tree.push_back(join_vert(arma::zeros(3, 1), input_vec));
 }
-
+// Params specify pitch for helical,
 void Body::set_hinge_map(const std::string &type,
                          const std::vector<double> &params) {
 
@@ -44,7 +44,7 @@ void Body::set_hinge_map(const std::string &type,
     is_dependent_hinge_map = false;
   } else if (type == "helical") {
     double pitch = params.size() > 0 ? params[0] : 1.0;
-    hinge_map = arma::mat{0, 1, 0, 0, pitch, 0};
+    hinge_map = arma::mat{0, 0, 1, 0, 0, pitch};
   } else if (type == "spherical") {
     hinge_map = arma::zeros(3, 6);
     hinge_map(0, 0) = 1;
@@ -59,16 +59,31 @@ void Body::set_hinge_map(const std::string &type,
 
     compute_hinge_map = [params](const arma::vec &theta) {
       arma::mat h = arma::zeros(2, 6);
-      h(0, 0) = 1;
-      h(1, 1) = cos(theta(0));
-      h(1, 2) = sin(theta(0));
+      h(0, 2) = 1;
+      h(1, 0) = cos(theta(0));
+      h(1, 1) = sin(theta(0));
       return h;
+    };
+
+    gradient_term = [params](const arma::vec &theta,
+                             const arma::vec &theta_dot) {
+      arma::vec::fixed<6> dh = arma::zeros(6);
+      dh(0) = -sin(theta(0)) * theta_dot(0) * theta_dot(1);
+      dh(1) = cos(theta(0)) * theta_dot(0) * theta_dot(1);
+      return dh;
     };
   }
   if (!is_dependent_hinge_map) {
     transpose_hinge_map = hinge_map.t();
   }
 }
+
+void Body::set_hinge_state(const arma::vec &hinge_state_input) {
+  if (2 * hinge_map.n_rows == hinge_state_input.n_rows) {
+    state = hinge_state_input;
+  }
+}
+// Getting methods
 
 arma::mat Body::get_hinge_map(const arma::vec &theta) const {
   return is_dependent_hinge_map ? compute_hinge_map(theta) : hinge_map;
@@ -79,12 +94,32 @@ arma::mat Body::get_transposed_hinge_map(const arma::vec &theta) const {
                                 : transpose_hinge_map;
 }
 
-void Body::set_hinge_state(const arma::vec &hinge_state_input) {
-  if (2 * hinge_map.n_rows == hinge_state_input.n_rows) {
-    state = hinge_state_input;
-  }
+arma::vec::fixed<6>
+Body::get_coriolis_vector(const arma::vec &generalized_positions,
+                          const arma::mat &velocity_vector,
+                          const arma::vec &generalized_velocities) {
+  return is_dependent_hinge_map
+             ? coriolis_vector(generalized_positions, velocity_vector,
+                               generalized_velocities) +
+                   gradient_term(generalized_positions, generalized_velocities)
+             : coriolis_vector(generalized_positions, velocity_vector,
+                               generalized_velocities);
 }
+// coriolis term for body frame, eq. 5.11 - without the differential hinge map
+// part
+arma::vec::fixed<6>
+Body::coriolis_vector(const arma::vec &generalized_positions,
+                      const arma::mat &velocity_vector,
+                      const arma::vec &generalized_velocities) {
 
+  const arma::mat tilde_velocity_result = tilde_velocity(velocity_vector);
+  const arma::mat delta_velocity =
+      get_transposed_hinge_map(generalized_positions) * generalized_velocities;
+  const arma::mat delta_velocity_bar = bar_velocity(delta_velocity);
+
+  return tilde_velocity_result * delta_velocity -
+         delta_velocity_bar * delta_velocity;
+}
 // Inverse specific
 
 void Body::set_position_for_inverse_dyn(const std::string func) {

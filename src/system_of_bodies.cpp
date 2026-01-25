@@ -206,24 +206,3 @@ void SystemOfBodies::update_system_state() {
   }
   system_state = state;
 }
-
-arma::mat SystemOfBodies::c_hinge(const arma::mat &hinge_map,
-                                  const int &body_ID) {
-
-  return arma::vec(6, arma::fill::zeros);
-}
-
-arma::vec::fixed<6>
-SystemOfBodies::gyroscopic_system(const int &k,
-                                  const forward_parameters &p) const {}
-arma::vec::fixed<6>
-SystemOfBodies::coriolis_system(const int &k,
-                                const forward_parameters &p) const {
-
-  if (bodies[k]->is_dependent_hinge_map == false) {
-
-    return coriolis_vector(bodies[k]->hinge_map, p.body_velocities[k],
-                           p.theta_dot[k]);
-  } else if (bodies[k]->is_dependent_hinge_map == true) {
-  }
-}

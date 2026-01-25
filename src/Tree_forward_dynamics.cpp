@@ -75,8 +75,8 @@ void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
     p.accel[k] =
         p.accel_plus[k] +
         bodies[k]->get_transposed_hinge_map(p.theta[k]) * p.theta_ddot[k] +
-        coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
-                        p.body_velocities[k], p.theta_dot[k]);
+        bodies[k]->get_coriolis_vector(p.theta[k], p.body_velocities[k],
+                                       p.theta_dot[k]);
   }
 
   for (int k = 0; k < n; ++k) {
@@ -166,6 +166,7 @@ void SystemOfBodies::solve_forward_dynamics_tree() {
     plot_data(store_velocities, formatted_results, n, "velocities");
     plot_data(store_forces, formatted_results, n, "forces");
   }
+  animate_tree(formatted_results);
 }
 
 // computes the transform vectors of each body. Stored in n+1 vector
@@ -258,18 +259,16 @@ void SystemOfBodies::compute_J_fractal(
     const {
   if (bodies[k]->children_ID[0] == 0) {
     p.J_fractal[k] =
-        p.P[k] *
-            coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
-                            p.body_velocities[k], p.theta_dot[k]) +
+        p.P[k] * bodies[k]->get_coriolis_vector(
+                     p.theta[k], p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
 
   } else if (bodies[k]->children_ID.size() == 1) {
     p.J_fractal[k] =
         spatial_operator_dt[k][0] *
             p.J_fractal_plus[bodies[k]->children_ID[0]] +
-        p.P[k] *
-            coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
-                            p.body_velocities[k], p.theta_dot[k]) +
+        p.P[k] * bodies[k]->get_coriolis_vector(
+                     p.theta[k], p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   } else {
 
@@ -279,9 +278,8 @@ void SystemOfBodies::compute_J_fractal(
                         p.J_fractal_plus[bodies[k]->children_ID[i]];
     }
     p.J_fractal[k] +=
-        p.P[k] *
-            coriolis_vector(bodies[k]->get_transposed_hinge_map(p.theta[k]),
-                            p.body_velocities[k], p.theta_dot[k]) +
+        p.P[k] * bodies[k]->get_coriolis_vector(
+                     p.theta[k], p.body_velocities[k], p.theta_dot[k]) +
         gyroscopic_force_z(bodies[k]->inertial_matrix, p.body_velocities[k]);
   }
 }

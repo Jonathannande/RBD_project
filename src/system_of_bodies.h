@@ -17,7 +17,7 @@ class SystemOfBodies {
 public:
   // Simulation attributes
   const double t0{0.0};                // start time
-  const double t{4.0};                 // end time
+  const double t{40};                  // end time
   const double dt{0.0008};             // time step
   const double system_gravity{9.81};   // gravity
   unsigned int n{0};                   // number of bodies
@@ -143,10 +143,8 @@ public:
                          const std::vector<std::vector<arma::mat::fixed<6, 6>>>
                              &spatial_operator_dt) const;
 
-  arma::mat c_hinge(const arma::mat &hinge_map, const int &body_ID);
+  void animate_tree(const ParsedData &data);
 
-  arma::vec::fixed<6> gyroscopic_system(const int &k,
-                                        const forward_parameters &p) const;
   arma::vec::fixed<6> coriolis_system(const int &k,
                                       const forward_parameters &p) const;
 };

@@ -24,4 +24,8 @@ void test_raylib();
 void test_tree_dynamics();
 
 void test_spherical_hinge();
+
+void test_rayy();
+
+void test_chain_dynamics();
 #endif // MYPROJECT_TESTS_UTILS_H
