@@ -20,7 +20,8 @@ public:
   arma::vec::fixed<6> out_hinge_pos; // 6X1 position vector used for transform
                                      // from center of mass
 
-  std::vector<arma::vec::fixed<6>> out_hinge_tree; //
+  std::vector<arma::vec::fixed<6>>
+      out_hinge_tree; // the different positions children may have on the body.
 
   // Graph attributes
   int body_ID;
@@ -42,6 +43,7 @@ public:
 
   virtual void compute_inertia_matrix() = 0; // pure virtual
   std::function<arma::mat(const arma::vec &)> compute_hinge_map;
+  std::function<arma::vec(const arma::vec &theta)> compute_hinge_state;
   std::function<arma::vec::fixed<6>(const arma::vec &theta,
                                     const arma::vec &theta_dot)>
       gradient_term;
@@ -58,6 +60,7 @@ public:
   void set_acceleration_for_inverse_dyn(std::string func);
 
   // gettting methods
+  arma::vec::fixed<6> get_hinge_state(const arma::vec &theta) const;
   arma::mat get_hinge_map(const arma::vec &theta) const;
   arma::mat get_transposed_hinge_map(const arma::vec &theta) const;
   arma::vec::fixed<6>

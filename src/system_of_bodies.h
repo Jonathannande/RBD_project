@@ -66,6 +66,34 @@ private:
     }
   };
 
+  struct Storage {
+    std::vector<std::vector<arma::vec>> body_velocities;
+    std::vector<std::vector<arma::vec>> body_accelerations;
+    std::vector<std::vector<arma::vec>> body_forces;
+    std::vector<std::vector<arma::vec>> inertial_velocities;
+    std::vector<std::vector<arma::vec>> inertial_accelerations;
+    std::vector<std::vector<arma::vec>> inertial_forces;
+    std::vector<std::vector<arma::vec>> generalized_forces;
+
+    Storage(const int &time_step, const int &n_,
+            const std::vector<bool> &flag) {
+      if (flag[0])
+        body_velocities.resize(time_step, std::vector<arma::vec>(n_));
+      if (flag[1])
+        body_accelerations.resize(time_step, std::vector<arma::vec>(n_));
+      if (flag[2])
+        body_forces.resize(time_step, std::vector<arma::vec>(n_));
+      if (flag[3])
+        inertial_velocities.resize(time_step, std::vector<arma::vec>(n_));
+      if (flag[4])
+        inertial_accelerations.resize(time_step, std::vector<arma::vec>(n_));
+      if (flag[5])
+        inertial_forces.resize(time_step, std::vector<arma::vec>(n_));
+      if (flag[6])
+        generalized_forces.resize(time_step, std::vector<arma::vec>(n_));
+    }
+  };
+
 public:
   // Methods
 
@@ -145,8 +173,7 @@ public:
 
   void animate_tree(const ParsedData &data);
 
-  arma::vec::fixed<6> coriolis_system(const int &k,
-                                      const forward_parameters &p) const;
+  void animate_tree_universal(const ParsedData &data);
 };
 
 #endif // MYPROJECT_SYSTEM_OF_BODIES_H

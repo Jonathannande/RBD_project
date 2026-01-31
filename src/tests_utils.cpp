@@ -34,7 +34,7 @@ void test_spherical_hinge() {
   arma::vec vec = {0, -rec_1->l / 2.0, 0};
   rec_1->set_position_vec_hinge(vec);
   rec_1->set_hinge_map("spherical");
-  rec_1->set_hinge_state({pi / 2, pi / 2, pi / 2, 0, 0, 0});
+  rec_1->set_hinge_state({pi / 8, 0, pi / 8, 0, 0, 0});
   rec_1->compute_inertia_matrix();
 
   SystemOfBodies system;
@@ -53,7 +53,7 @@ void test_universal_hinge() {
   arma::vec vec = {0, -rec_1->l / 2.0, 0};
   rec_1->set_position_vec_hinge(vec);
   rec_1->set_hinge_map("universal");
-  rec_1->set_hinge_state({pi / 6, -pi / 6, 0, 0});
+  rec_1->set_hinge_state({pi / 6, pi / 7, 0.5, 0});
   rec_1->compute_inertia_matrix();
 
   SystemOfBodies system;
@@ -62,7 +62,7 @@ void test_universal_hinge() {
 
   system.bodies[0]->set_outboard_position_vec_hinge_push(vec);
   system.prep_system();
-  system.set_stepper_type(false);
+  system.set_stepper_type(true);
   system.solve_forward_dynamics_tree();
 }
 
@@ -82,6 +82,7 @@ void test_n_body_system(const int n) {
   for (int i = 1; i < n; ++i) {
     auto rec = std::make_unique<Rectangle_computed>(2, 0.1, 0.2, 8.0);
     arma::vec vec = {0, -rec->l / 2.0, 0};
+    rec->set_hinge_map("rotational");
     rec->set_position_vec_hinge(vec);
     rec->set_outboard_position_vec_hinge({0, rec->l / 2.0, 0});
     rec->set_hinge_state({array[i % 2], 0});
@@ -92,7 +93,7 @@ void test_n_body_system(const int n) {
 
   system.prep_system();
   system.set_stepper_type(true);
-  system.solve_forward_dynamics();
+  system.solve_forward_dynamics_tree();
 }
 
 void test_three_body_from_course() {
@@ -101,8 +102,9 @@ void test_three_body_from_course() {
   for (int i = 0; i < 3; ++i) {
     auto rec = std::make_unique<Rectangle_computed>(2.0, 0.1, 0.2, 8.0);
     arma::vec vec = {0, -rec->l / 2.0, 0};
+    rec->set_hinge_map("rotational");
     rec->set_position_vec_hinge(vec);
-    rec->set_outboard_position_vec_hinge({0, rec->l / 2.0, 0});
+    rec->set_outboard_position_vec_hinge_push({0, rec->l / 2.0, 0});
     rec->set_hinge_state({array[i], 0});
     rec->compute_inertia_matrix();
 
@@ -110,7 +112,7 @@ void test_three_body_from_course() {
   }
   system.prep_system();
   system.set_stepper_type(true);
-  system.solve_forward_dynamics();
+  system.solve_forward_dynamics_tree();
 }
 
 void test_inverse_dynamics_three_body_from_course() {
@@ -187,6 +189,7 @@ void test_tree_dynamics() {
   auto start = std::chrono::high_resolution_clock::now();
   std::array<double, 5> array_hinge_state = {pi / 6, -pi / 5, pi / 7, pi / 2,
                                              pi / 3};
+
   array_hinge_state = {pi / 4, pi / 4, 0, pi / 4, pi / 2};
   auto rec = Rectangle_computed(2.0, 0.1, 0.2, 8.0);
 
@@ -202,6 +205,7 @@ void test_tree_dynamics() {
 
     arma::vec vec = {0, -rec->l / 2.0, 0};
 
+    rec->set_hinge_map("rotational");
     rec->set_position_vec_hinge(vec);
     rec->set_hinge_state({array_hinge_state[i], 0});
     rec->compute_inertia_matrix();
@@ -471,4 +475,87 @@ void test_chain_dynamics() {
       std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   std::cout << "Full program run time: " << duration.count()
             << " microseconds\n";
+}
+void test_random_tree(int n, unsigned int seed) {
+  auto start = std::chrono::high_resolution_clock::now();
+
+  std::mt19937 rng(seed);
+
+  // Parameter sets to randomly draw from
+  std::array<double, 4> lengths = {1.5, 2.0, 2.5, 3.0};
+  std::array<double, 3> widths = {0.08, 0.1, 0.12};
+  std::array<double, 3> heights = {0.15, 0.2, 0.25};
+  std::array<double, 1> densities = {6.0};
+  std::array<double, 6> init_angles = {pi / 6,  -pi / 6, pi / 4,
+                                       -pi / 4, pi / 3,  -pi / 3};
+
+  SystemOfBodies system;
+
+  // Store lengths for outboard vectors
+  std::vector<double> body_lengths(n);
+
+  // Create n bodies with random parameters
+  for (int i = 0; i < n; ++i) {
+    double l = lengths[rng() % lengths.size()];
+    double w = widths[rng() % widths.size()];
+    double h = heights[rng() % heights.size()];
+    double d = densities[rng() % densities.size()];
+    double angle = init_angles[rng() % init_angles.size()];
+
+    body_lengths[i] = l;
+
+    auto body = std::make_unique<Rectangle_computed>(l, w, h, d);
+    arma::vec vec = {0, -body->l / 2.0, 0};
+
+    body->set_hinge_map("rotational");
+    body->set_position_vec_hinge(vec);
+    body->set_hinge_state({angle, 0});
+    body->compute_inertia_matrix();
+    system.create_body(std::move(body));
+  }
+
+  system.prep_system();
+
+  // Random tree structure: each body picks random parent from higher-indexed
+  // bodies
+  std::vector<std::vector<int>> children(n);
+
+  for (int body_id = n - 1; body_id >= 1; --body_id) {
+    int parent_id = (rng() % (n - body_id)) + body_id + 1;
+    children[parent_id - 1].push_back(body_id);
+  }
+
+  // Now set parents with correct is_only_child flag
+  for (int i = 0; i < n; ++i) {
+    for (int child_id : children[i]) {
+      bool is_only_child = (children[i].size() == 1);
+      system.set_parent(child_id, i + 1, is_only_child);
+    }
+  }
+
+  // Set children and outboard vectors
+  for (int i = 0; i < n; ++i) {
+    system.bodies[i]->children_ID.clear();
+
+    if (children[i].empty()) {
+      system.bodies[i]->children_ID.push_back(0);
+      // Leaf bodies still need an outboard vector entry
+      arma::vec out_vec = {0, body_lengths[i] / 2.0, 0};
+      system.bodies[i]->set_outboard_position_vec_hinge_push(out_vec);
+    } else {
+      for (int child_id : children[i]) {
+        system.bodies[i]->children_ID.push_back(child_id);
+        arma::vec out_vec = {0, body_lengths[i] / 2.0, 0};
+        system.bodies[i]->set_outboard_position_vec_hinge_push(out_vec);
+      }
+    }
+  }
+
+  system.set_stepper_type(true);
+  system.solve_forward_dynamics_tree();
+
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  std::cout << "Run time: " << duration.count() << " microseconds\n";
 }

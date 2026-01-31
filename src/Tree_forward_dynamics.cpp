@@ -17,76 +17,6 @@
 
 using namespace boost::numeric::odeint;
 
-void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
-                                       std::vector<double> &dydt,
-                                       forward_parameters &p) const {
-
-  // method converting the state to the arma::vec format distributed over the
-  // dofs of each body
-  to_arma_vec(y, p);
-
-  // Sets system gravity, currently hard-coded should ideally be more general.
-  p.accel[n](4) = system_gravity;
-  // p.accel[n](2) = sin(t);  // add swinging to the base body
-  const std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator_dt =
-      find_spatial_operator_tree(p.theta);
-
-  // now we start sweeping n times in total, first kinematics which has in part
-  // already been done through the spatial operator, but now velocities
-
-  for (int k = n - 1; k > -1; --k) {
-
-    p.body_velocities[k] =
-        spatial_operator_dt[bodies[k]->parent_ID - 1][get_child_index(k)].t() *
-            p.body_velocities[bodies[k]->parent_ID - 1] +
-        bodies[k]->get_transposed_hinge_map(p.theta[k]) * p.theta_dot[k];
-  }
-
-  for (int k = 0; k < n; ++k) {
-
-    compute_p(k, p, spatial_operator_dt);
-
-    p.D = bodies[k]->get_hinge_map(p.theta[k]) * p.P[k] *
-          bodies[k]->get_transposed_hinge_map(p.theta[k]);
-
-    p.G_fractal[k] = p.P[k] * bodies[k]->get_transposed_hinge_map(p.theta[k]) *
-                     arma::inv(trimatu(p.D));
-
-    p.tau_bar[k] =
-        arma::eye(6, 6) - p.G_fractal[k] * bodies[k]->get_hinge_map(p.theta[k]);
-
-    p.P_plus[k + 1] = p.tau_bar[k] * p.P[k];
-
-    compute_J_fractal(k, p, spatial_operator_dt);
-
-    p.eta = -bodies[k]->get_hinge_map(p.theta[k]) * p.J_fractal[k];
-
-    p.frac_v[k] = arma::solve(trimatu(p.D), p.eta);
-
-    p.J_fractal_plus[k + 1] = p.J_fractal[k] + p.G_fractal[k] * p.eta;
-  }
-
-  for (int k = n - 1; k > -1; --k) {
-
-    p.accel_plus[k] =
-        spatial_operator_dt[bodies[k]->parent_ID - 1][get_child_index(k)].t() *
-        p.accel[bodies[k]->parent_ID - 1];
-    p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus[k];
-    p.accel[k] =
-        p.accel_plus[k] +
-        bodies[k]->get_transposed_hinge_map(p.theta[k]) * p.theta_ddot[k] +
-        bodies[k]->get_coriolis_vector(p.theta[k], p.body_velocities[k],
-                                       p.theta_dot[k]);
-  }
-
-  for (int k = 0; k < n; ++k) {
-    p.body_forces[k] =
-        p.P_plus[k + 1] * p.accel_plus[k] + p.J_fractal_plus[k + 1];
-  }
-
-  to_std_vec(dydt, p);
-}
-
 void SystemOfBodies::solve_forward_dynamics_tree() {
 
   forward_parameters p(n, system_total_dof);
@@ -166,7 +96,7 @@ void SystemOfBodies::solve_forward_dynamics_tree() {
     plot_data(store_velocities, formatted_results, n, "velocities");
     plot_data(store_forces, formatted_results, n, "forces");
   }
-  animate_tree(formatted_results);
+  // animate_tree(formatted_results);
 }
 
 // computes the transform vectors of each body. Stored in n+1 vector
@@ -180,8 +110,7 @@ SystemOfBodies::find_spatial_operator_tree(
   return_vector[n].resize(1);
 
   arma::vec6 base =
-      bodies[n - 1]->get_transposed_hinge_map(state[n - 1]) * state[n - 1] +
-      bodies[n - 1]->hinge_pos;
+      bodies[n - 1]->get_hinge_state(state[n - 1]) + bodies[n - 1]->hinge_pos;
 
   arma::vec6 b = base - bodies[n - 1]->out_hinge_tree[0];
   return_vector[n][0] = rb_transform(b.rows(0, 2), b.rows(3, 5));
@@ -197,9 +126,9 @@ SystemOfBodies::find_spatial_operator_tree(
     for (int j = 0; j < bodies[i]->children_ID.size(); ++j) {
 
       arma::vec6 base =
-          bodies[bodies[i]->children_ID[j] - 1]->get_transposed_hinge_map(
-              state[bodies[i]->children_ID[j] - 1]) *
-              state[bodies[i]->children_ID[j] - 1] +
+
+          bodies[bodies[i]->children_ID[j] - 1]->get_hinge_state(
+              state[bodies[i]->children_ID[j] - 1]) +
           bodies[bodies[i]->children_ID[j] - 1]->hinge_pos;
 
       arma::vec6 a =
@@ -229,6 +158,80 @@ int SystemOfBodies::get_child_index(const int &k_index) const {
   return i;
 }
 
+void SystemOfBodies::EOM__forward_tree(const std::vector<double> &y,
+                                       std::vector<double> &dydt,
+                                       forward_parameters &p) const {
+
+  // method converting the state to the arma::vec format distributed over the
+  // dofs of each body
+  //
+  auto t1 = std::chrono::high_resolution_clock::now();
+  to_arma_vec(y, p);
+  auto t2 = std::chrono::high_resolution_clock::now();
+
+  // Sets system gravity, currently hard-coded should ideally be more general.
+  p.accel[n](4) = system_gravity;
+
+  // p.accel[n](2) = sin(t);  // add swinging to the base body
+  const std::vector<std::vector<arma::mat::fixed<6, 6>>> spatial_operator_dt =
+      find_spatial_operator_tree(p.theta);
+
+  // now we start sweeping n times in total, first kinematics which has in part
+  // already been done through the spatial operator, but now velocities
+
+  for (int k = n - 1; k > -1; --k) {
+
+    p.body_velocities[k] =
+        spatial_operator_dt[bodies[k]->parent_ID - 1][get_child_index(k)].t() *
+            p.body_velocities[bodies[k]->parent_ID - 1] +
+        bodies[k]->get_transposed_hinge_map(p.theta[k]) * p.theta_dot[k];
+  }
+
+  // gather sweep for articulated body inertias.
+  for (int k = 0; k < n; ++k) {
+
+    compute_p(k, p, spatial_operator_dt);
+
+    p.D = bodies[k]->get_hinge_map(p.theta[k]) * p.P[k] *
+          bodies[k]->get_transposed_hinge_map(p.theta[k]);
+
+    p.G_fractal[k] = p.P[k] * bodies[k]->get_transposed_hinge_map(p.theta[k]) *
+                     arma::inv(trimatu(p.D));
+
+    p.tau_bar[k] =
+        arma::eye(6, 6) - p.G_fractal[k] * bodies[k]->get_hinge_map(p.theta[k]);
+
+    p.P_plus[k + 1] = p.tau_bar[k] * p.P[k];
+
+    compute_J_fractal(k, p, spatial_operator_dt);
+
+    p.eta = -bodies[k]->get_hinge_map(p.theta[k]) * p.J_fractal[k];
+
+    p.frac_v[k] = arma::solve(trimatu(p.D), p.eta);
+
+    p.J_fractal_plus[k + 1] = p.J_fractal[k] + p.G_fractal[k] * p.eta;
+  }
+
+  // final scatter sweep for accelerations, and body force.
+  for (int k = n - 1; k > -1; --k) {
+
+    p.accel_plus[k] =
+        spatial_operator_dt[bodies[k]->parent_ID - 1][get_child_index(k)].t() *
+        p.accel[bodies[k]->parent_ID - 1];
+    p.theta_ddot[k] = p.frac_v[k] - p.G_fractal[k].t() * p.accel_plus[k] -
+                      0.3 * p.theta_dot[k]; // damping term.
+    ;
+    p.accel[k] =
+        p.accel_plus[k] +
+        bodies[k]->get_transposed_hinge_map(p.theta[k]) * p.theta_ddot[k] +
+        bodies[k]->get_coriolis_vector(p.theta[k], p.body_velocities[k],
+                                       p.theta_dot[k]);
+    p.body_forces[k] =
+        p.P_plus[k + 1] * p.accel_plus[k] + p.J_fractal_plus[k + 1];
+  }
+
+  to_std_vec(dydt, p);
+}
 // When having multiple children, it is necessary to sum the influences of each
 // child on a body. This is done in the else statement
 void SystemOfBodies::compute_p(

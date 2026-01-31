@@ -34,43 +34,75 @@ void Body::set_hinge_map(const std::string &type,
   if (type == "rotational") {
     hinge_map = {0, 0, 1, 0, 0, 0};
     is_dependent_hinge_map = false;
+    // doesn't work
+    transpose_hinge_map = hinge_map.t();
+    arma::mat h_t = transpose_hinge_map;
+    compute_hinge_state = [h_t](const arma::vec &theta) { return h_t * theta; };
   } else if (type == "prismatic") {
     hinge_map = arma::mat{0, 0, 0, 0, 1, 0};
+
     is_dependent_hinge_map = false;
+    compute_hinge_state = [this](const arma::vec &theta) {
+      return get_transposed_hinge_map(theta) * theta;
+    };
+
   } else if (type == "cylindrical") {
     hinge_map = arma::zeros(2, 6);
     hinge_map(0, 2) = 1;
     hinge_map(1, 5) = 1;
+
     is_dependent_hinge_map = false;
-  } else if (type == "helical") {
+
+    compute_hinge_state = [this](const arma::vec &theta) {
+      return get_transposed_hinge_map(theta) * theta;
+    };
+  }
+
+  else if (type == "helical") {
     double pitch = params.size() > 0 ? params[0] : 1.0;
     hinge_map = arma::mat{0, 0, 1, 0, 0, pitch};
-  } else if (type == "spherical") {
+
+    compute_hinge_state = [this](const arma::vec &theta) {
+      return get_transposed_hinge_map(theta) * theta;
+    };
+  }
+
+  else if (type == "spherical") {
     hinge_map = arma::zeros(3, 6);
     hinge_map(0, 0) = 1;
     hinge_map(1, 1) = 1;
     hinge_map(2, 2) = 1;
     is_dependent_hinge_map = false;
-  } else if (type == "universal") {
+  }
+
+  else if (type == "universal") {
 
     is_dependent_hinge_map = true;
     // Dummy hinge map for dof computations of the system
     hinge_map = arma::zeros(2, 6);
 
-    compute_hinge_map = [params](const arma::vec &theta) {
+    compute_hinge_map = [](const arma::vec &theta) {
       arma::mat h = arma::zeros(2, 6);
-      h(0, 2) = 1;
-      h(1, 0) = cos(theta(0));
+      h(0, 0) = 1;
       h(1, 1) = sin(theta(0));
+      h(1, 2) = cos(theta(0));
       return h;
     };
 
     gradient_term = [params](const arma::vec &theta,
                              const arma::vec &theta_dot) {
       arma::vec::fixed<6> dh = arma::zeros(6);
-      dh(0) = -sin(theta(0)) * theta_dot(0) * theta_dot(1);
       dh(1) = cos(theta(0)) * theta_dot(0) * theta_dot(1);
+      dh(2) = -sin(theta(0)) * theta_dot(0) * theta_dot(1);
       return dh;
+    };
+
+    compute_hinge_state = [this](const arma::vec &theta) {
+      arma::vec h = arma::zeros(6);
+      h(0) = theta(0);
+      h(2) = theta(1);
+
+      return h;
     };
   }
   if (!is_dependent_hinge_map) {
@@ -85,6 +117,9 @@ void Body::set_hinge_state(const arma::vec &hinge_state_input) {
 }
 // Getting methods
 
+arma::vec::fixed<6> Body::get_hinge_state(const arma::vec &theta) const {
+  return compute_hinge_state(theta);
+}
 arma::mat Body::get_hinge_map(const arma::vec &theta) const {
   return is_dependent_hinge_map ? compute_hinge_map(theta) : hinge_map;
 }
@@ -112,10 +147,10 @@ Body::coriolis_vector(const arma::vec &generalized_positions,
                       const arma::mat &velocity_vector,
                       const arma::vec &generalized_velocities) {
 
-  const arma::mat tilde_velocity_result = tilde_velocity(velocity_vector);
+  const arma::mat tilde_velocity_result = tilde_velocity_fast(velocity_vector);
   const arma::mat delta_velocity =
       get_transposed_hinge_map(generalized_positions) * generalized_velocities;
-  const arma::mat delta_velocity_bar = bar_velocity(delta_velocity);
+  const arma::mat delta_velocity_bar = bar_velocity_fast(delta_velocity);
 
   return tilde_velocity_result * delta_velocity -
          delta_velocity_bar * delta_velocity;
@@ -159,11 +194,11 @@ void Rectangle_computed::compute_inertia_matrix() {
       {0, 0, m * (1.0 / 12.0) * (std::pow(h, 2) + std::pow(l, 2))}};
 
   // parallel axis theorem
-  const arma::mat position_vec_tilde = tilde(-hinge_pos.rows(3, 5));
+  const arma::mat position_vec_tilde = tilde_fast(-hinge_pos.rows(3, 5));
   const arma::mat I_corner = inertial_matrix_rectangle +
                              m * (position_vec_tilde.t() * position_vec_tilde);
   const arma::mat I = arma::eye(3, 3);
-  const arma::mat position_vec_tilde_non_neg = tilde(hinge_pos.rows(3, 5));
+  const arma::mat position_vec_tilde_non_neg = tilde_fast(hinge_pos.rows(3, 5));
 
   // join the matrices and construct the inertia matrix
   const arma::mat upper = join_horiz(I_corner, m * position_vec_tilde_non_neg);

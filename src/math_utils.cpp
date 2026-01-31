@@ -13,6 +13,17 @@ arma::mat::fixed<3, 3> tilde(const arma::mat &vector) {
   return tilde_matrix;
 }
 
+arma::mat::fixed<3, 3> tilde_fast(const arma::vec::fixed<3> &v) {
+  arma::mat::fixed<3, 3> r(arma::fill::zeros);
+  r(0, 1) = -v(2);
+  r(0, 2) = v(1);
+  r(1, 0) = v(2);
+  r(1, 2) = -v(0);
+  r(2, 0) = -v(1);
+  r(2, 1) = v(0);
+  return r;
+}
+
 // rotation matrix using euler angles
 arma::mat rotation_matrix(const arma::mat &rotation_vec) {
   // basic euler
@@ -110,6 +121,32 @@ arma::mat::fixed<6, 6> tilde_velocity(const arma::mat &velocity_vector) {
   return join_vert(upper, lower);
 }
 
+arma::mat::fixed<6, 6> tilde_velocity_fast(const arma::vec::fixed<6> &v) {
+  arma::mat::fixed<6, 6> r(arma::fill::zeros);
+  // top-left: tilde(angular)
+  r(0, 1) = -v(2);
+  r(0, 2) = v(1);
+  r(1, 0) = v(2);
+  r(1, 2) = -v(0);
+  r(2, 0) = -v(1);
+  r(2, 1) = v(0);
+  // bottom-left: tilde(translational)
+  r(3, 1) = -v(5);
+  r(3, 2) = v(4);
+  r(4, 0) = v(5);
+  r(4, 2) = -v(3);
+  r(5, 0) = -v(4);
+  r(5, 1) = v(3);
+  // bottom-right: tilde(angular)
+  r(3, 4) = -v(2);
+  r(3, 5) = v(1);
+  r(4, 3) = v(2);
+  r(4, 5) = -v(0);
+  r(5, 3) = -v(1);
+  r(5, 4) = v(0);
+  return r;
+}
+
 // transpose of tilde_velocity
 arma::mat::fixed<6, 6> bar_velocity(const arma::mat &velocity_vector) {
   // do the tildes
@@ -124,10 +161,32 @@ arma::mat::fixed<6, 6> bar_velocity(const arma::mat &velocity_vector) {
   // assemble the matrix
   return join_vert(upper, lower);
 }
-
+// Add to your code temporarily
+arma::mat::fixed<6, 6> bar_velocity_fast(const arma::vec::fixed<6> &v) {
+  arma::mat::fixed<6, 6> r(arma::fill::zeros);
+  r(0, 1) = -v(2);
+  r(0, 2) = v(1);
+  r(1, 0) = v(2);
+  r(1, 2) = -v(0);
+  r(2, 0) = -v(1);
+  r(2, 1) = v(0);
+  r(3, 4) = -v(2);
+  r(3, 5) = v(1);
+  r(4, 3) = v(2);
+  r(4, 5) = -v(0);
+  r(5, 3) = -v(1);
+  r(5, 4) = v(0);
+  r(0, 4) = -v(5);
+  r(0, 5) = v(4);
+  r(1, 3) = v(5);
+  r(1, 5) = -v(3);
+  r(2, 3) = -v(4);
+  r(2, 4) = v(3);
+  return r;
+}
 // gyroscopic force for body frame, eq. 2.28
 arma::vec::fixed<6> gyroscopic_force_z(const arma::mat &inertial_matrix,
                                        const arma::mat &velocity_vector) {
-  const arma::mat velocity_bar = bar_velocity(velocity_vector);
+  const arma::mat velocity_bar = bar_velocity_fast(velocity_vector);
   return velocity_bar * inertial_matrix * velocity_vector;
 }

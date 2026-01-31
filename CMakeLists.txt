@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -march=native")
 
 # For normal building (optimized, no debug symbols)
-#set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 # Add sanitizers for Debug builds
@@ -45,6 +45,7 @@ add_executable(P src/main.cpp
         src/system_of_bodies_forward_dynamics.cpp
         src/system_structure_utils.cpp
         src/Tree_forward_dynamics.cpp
+        src/animation.cpp
 )
 
 target_link_libraries(P

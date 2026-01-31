@@ -28,4 +28,6 @@ void test_spherical_hinge();
 void test_rayy();
 
 void test_chain_dynamics();
+
+void test_random_tree(int n, unsigned int seed = 41);
 #endif // MYPROJECT_TESTS_UTILS_H

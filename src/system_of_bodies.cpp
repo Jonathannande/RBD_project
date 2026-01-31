@@ -155,7 +155,8 @@ void SystemOfBodies::create_body(std::unique_ptr<Body> any_body) {
   system_total_dof += inserted_body->hinge_map.n_rows;
 }
 // sets default id's to a chain uses mathmatical indexing (starts at 1 ends at
-// n)
+// n. Then sets the system state in terms of the given initial conditions of
+// each body.
 void SystemOfBodies::prep_system() {
   for (size_t i = 0; i < n; i++) {
     bodies[i]->body_ID = i + 1;
@@ -184,6 +185,8 @@ void SystemOfBodies::set_parent(const int &idx, const int &parent,
   }
 }
 
+// prints and sets system states in accordance with the initial conditions given
+// in the bodies.
 void SystemOfBodies::update_system_state() {
 
   std::vector<double> state(2 * system_total_dof, 0.0);
